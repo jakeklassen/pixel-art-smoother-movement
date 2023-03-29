@@ -1,0 +1,26 @@
+html,
+body {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background-color: #1a1a1a;
+}
+
+#container {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+}
+
+canvas {
+  background-color: black;
+  margin: auto;
+  padding: 0;
+  display: block;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  width: calc(128px * 4);
+  height: calc(128px * 4);
+}

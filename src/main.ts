@@ -4,7 +4,7 @@ import { loadImage } from './lib/asset-loader.ts';
 const playerSprite = await loadImage(playerShipUrl);
 
 // Game running at 4x scale of the game assets (128x128)
-{
+(() => {
   const scaleByFactor = (factor: number) => (value: number) => value * factor;
 
   const GAME_WIDTH = 128;
@@ -106,10 +106,10 @@ const playerSprite = await loadImage(playerShipUrl);
   }
 
   requestAnimationFrame(frame);
-}
+})();
 
 // Game scaled via CSS only
-{
+(() => {
   const GAME_WIDTH = 128;
   const GAME_HEIGHT = 128;
 
@@ -197,4 +197,4 @@ const playerSprite = await loadImage(playerShipUrl);
   }
 
   requestAnimationFrame(frame);
-}
+})();

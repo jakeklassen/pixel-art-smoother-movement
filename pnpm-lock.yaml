@@ -6,8 +6,8 @@ settings:
 
 devDependencies:
   '@types/css-font-loading-module':
-    specifier: ^0.0.10
-    version: 0.0.10
+    specifier: ^0.0.11
+    version: 0.0.11
   typescript:
     specifier: ^5.2.2
     version: 5.2.2
@@ -215,8 +215,8 @@ packages:
     dev: true
     optional: true
 
-  /@types/css-font-loading-module@0.0.10:
-    resolution: {integrity: sha512-fMgCyRAQLlwaVxqDxnakWf9nB+Cml+XfQ32mxGi/Ahb5B6SdgdurmUoUh8ZxlGXe//5YpeMniAr2jqdbcc2uEw==}
+  /@types/css-font-loading-module@0.0.11:
+    resolution: {integrity: sha512-yF1mjZCppzRwnjG3iduGih1GSwcOtLD7WOTLfGMp05puN9tEnmdc9NQc2a8tZ3ee66qhm95RdxGEBmiH9pG+bw==}
     dev: true
 
   /esbuild@0.18.20:

@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@types/css-font-loading-module':
-        specifier: ^0.0.13
-        version: 0.0.13
+        specifier: ^0.0.14
+        version: 0.0.14
       typescript:
         specifier: ^5.6.2
         version: 5.6.2
@@ -238,8 +238,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@types/css-font-loading-module@0.0.13':
-    resolution: {integrity: sha512-EnmFmshMT9rD3yohKkrbMMrRULUVkZbUAJFrFFO12mxiFWQvRKDQYsK1CB8tSUYZQ+uUui5RBvENNHqhL9xqgQ==}
+  '@types/css-font-loading-module@0.0.14':
+    resolution: {integrity: sha512-+EwJ/RW2vPqbYn0JXRHy593huPCtgmLF/kg57iLK9KUn6neTqGGOTZ0CbssP8Uou/gqT/5XmWKQ8A7ve7xNV6A==}
 
   '@types/estree@1.0.5':
     resolution: {integrity: sha512-/kYRxGDLWzHOB7q+wtSUQlFrtcdUccpfy+X+9iMBpHK8QLLhx2wIPYuS5DYtR9Wa/YlZAbIovy7qVdB1Aq6Lyw==}
@@ -430,7 +430,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.22.4':
     optional: true
 
-  '@types/css-font-loading-module@0.0.13': {}
+  '@types/css-font-loading-module@0.0.14': {}
 
   '@types/estree@1.0.5': {}
 

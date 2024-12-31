@@ -7,7 +7,14 @@ settings:
 importers:
 
   .:
+    dependencies:
+      tweakpane:
+        specifier: ^4.0.5
+        version: 4.0.5
     devDependencies:
+      '@tweakpane/core':
+        specifier: ^2.0.5
+        version: 2.0.5
       '@types/css-font-loading-module':
         specifier: ^0.0.14
         version: 0.0.14
@@ -265,6 +272,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@tweakpane/core@2.0.5':
+    resolution: {integrity: sha512-punBgD5rKCF5vcNo6BsSOXiDR/NSs9VM7SG65QSLJIxfRaGgj54ree9zQW6bO3pNFf3AogiGgaNODUVQRk9YqQ==}
+
   '@types/css-font-loading-module@0.0.14':
     resolution: {integrity: sha512-+EwJ/RW2vPqbYn0JXRHy593huPCtgmLF/kg57iLK9KUn6neTqGGOTZ0CbssP8Uou/gqT/5XmWKQ8A7ve7xNV6A==}
 
@@ -301,6 +311,9 @@ packages:
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
+
+  tweakpane@4.0.5:
+    resolution: {integrity: sha512-rxEXdSI+ArlG1RyO6FghC4ZUX8JkEfz8F3v1JuteXSV0pEtHJzyo07fcDG+NsJfN5L39kSbCYbB9cBGHyuI/tQ==}
 
   typescript@5.7.2:
     resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
@@ -481,6 +494,8 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.29.1':
     optional: true
 
+  '@tweakpane/core@2.0.5': {}
+
   '@types/css-font-loading-module@0.0.14': {}
 
   '@types/estree@1.0.6': {}
@@ -552,6 +567,8 @@ snapshots:
       fsevents: 2.3.3
 
   source-map-js@1.2.1: {}
+
+  tweakpane@4.0.5: {}
 
   typescript@5.7.2: {}
 

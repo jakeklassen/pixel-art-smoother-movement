@@ -1,5 +1,21 @@
-import playerShipUrl from './assets/player-ship.png';
-import { loadImage } from './lib/asset-loader.ts';
+import { Pane } from "tweakpane";
+import playerShipUrl from "./assets/player-ship.png";
+import { loadImage } from "./lib/asset-loader.ts";
+
+const pane = new Pane();
+
+const params = {
+  velocity: {
+    x: 60,
+    y: 30,
+  },
+};
+
+pane.addBinding(params, "velocity", {
+  min: 0,
+  max: 200,
+  step: 1,
+});
 
 const playerSprite = await loadImage(playerShipUrl);
 
@@ -15,8 +31,8 @@ const playerSprite = await loadImage(playerShipUrl);
 
   const scale4x = scaleByFactor(GAME_SCALE);
 
-  const canvas = document.querySelector<HTMLCanvasElement>('#canvas-4x')!;
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  const canvas = document.querySelector<HTMLCanvasElement>("#canvas-4x")!;
+  const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
   canvas.width = CANVAS_WIDTH;
   canvas.height = CANVAS_HEIGHT;
@@ -42,10 +58,7 @@ const playerSprite = await loadImage(playerShipUrl);
       x: 1,
       y: 1,
     },
-    vel: {
-      x: 60,
-      y: 30,
-    },
+    vel: params.velocity,
     sprite: playerSprite as HTMLImageElement,
   };
 
@@ -85,8 +98,8 @@ const playerSprite = await loadImage(playerShipUrl);
 
     ctx.setTransform(IDENTITY_MATRIX);
 
-    ctx.fillStyle = 'white';
-    ctx.font = '10px Visitor';
+    ctx.fillStyle = "white";
+    ctx.font = "10px Visitor";
 
     ctx.setTransform(
       GAME_SCALE,
@@ -113,8 +126,8 @@ const playerSprite = await loadImage(playerShipUrl);
   const GAME_WIDTH = 128;
   const GAME_HEIGHT = 128;
 
-  const canvas = document.querySelector<HTMLCanvasElement>('#canvas-scaled')!;
-  const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+  const canvas = document.querySelector<HTMLCanvasElement>("#canvas-scaled")!;
+  const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 
   canvas.width = GAME_WIDTH;
   canvas.height = GAME_HEIGHT;
@@ -140,10 +153,7 @@ const playerSprite = await loadImage(playerShipUrl);
       x: 1,
       y: 1,
     },
-    vel: {
-      x: 60,
-      y: 30,
-    },
+    vel: params.velocity,
     sprite: playerSprite as HTMLImageElement,
   };
 
@@ -183,8 +193,8 @@ const playerSprite = await loadImage(playerShipUrl);
 
     ctx.setTransform(IDENTITY_MATRIX);
 
-    ctx.fillStyle = 'white';
-    ctx.font = '10px Visitor';
+    ctx.fillStyle = "white";
+    ctx.font = "10px Visitor";
 
     ctx.setTransform(1, 0, 0, 1, player.pos.x | 0, player.pos.y | 0);
 

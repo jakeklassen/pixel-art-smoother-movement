@@ -25,6 +25,7 @@
       "@tweakpane/core",
       "@types/css-font-loading-module",
       "@types/estree",
+      "esbuild",
       "nanoid",
       "picocolors",
       "postcss",

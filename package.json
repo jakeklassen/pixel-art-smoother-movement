@@ -12,7 +12,7 @@
     "@tweakpane/core": "^2.0.5",
     "@types/css-font-loading-module": "^0.0.14",
     "typescript": "^5.9.3",
-    "vite": "^7.1.11"
+    "vite": "^7.2.2"
   },
   "dependencies": {
     "tweakpane": "^4.0.5"

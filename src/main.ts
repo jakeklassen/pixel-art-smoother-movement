@@ -142,7 +142,7 @@ const playerSprite = await loadImage(playerShipUrl);
   requestAnimationFrame(frame);
 })();
 
-// Game scaled via CSS only (no interpolation for comparison)
+// Game scaled via CSS only
 (() => {
   const GAME_WIDTH = 128;
   const GAME_HEIGHT = 128;
@@ -170,6 +170,10 @@ const playerSprite = await loadImage(playerShipUrl);
       x: canvas.width * 0.25 - playerSprite.width / 2,
       y: canvas.height / 2 - playerSprite.height / 2,
     },
+    prevPos: {
+      x: 0,
+      y: 0,
+    },
     dir: {
       x: 1,
       y: 1,
@@ -177,6 +181,10 @@ const playerSprite = await loadImage(playerShipUrl);
     vel: params.velocity,
     sprite: playerSprite as HTMLImageElement,
   };
+
+  // Initialize prevPos to starting position
+  player.prevPos.x = player.pos.x;
+  player.prevPos.y = player.pos.y;
 
   const TARGET_FPS = 60;
   const STEP = 1000 / TARGET_FPS;
@@ -186,6 +194,10 @@ const playerSprite = await loadImage(playerShipUrl);
 
   function frame(hrt: DOMHighResTimeStamp) {
     deltaTimeAccumulator += Math.min(1000, hrt - last);
+
+    // Store previous position before physics updates
+    player.prevPos.x = player.pos.x;
+    player.prevPos.y = player.pos.y;
 
     while (deltaTimeAccumulator >= STEP) {
       player.pos.x += player.vel.x * dt * player.dir.x;
@@ -210,6 +222,19 @@ const playerSprite = await loadImage(playerShipUrl);
       deltaTimeAccumulator -= STEP;
     }
 
+    // Interpolate position for smooth rendering on high refresh rate displays
+    let renderX: number;
+    let renderY: number;
+
+    if (params.interpolation) {
+      const alpha = deltaTimeAccumulator / STEP;
+      renderX = player.prevPos.x + (player.pos.x - player.prevPos.x) * alpha;
+      renderY = player.prevPos.y + (player.pos.y - player.prevPos.y) * alpha;
+    } else {
+      renderX = player.pos.x;
+      renderY = player.pos.y;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.setTransform(IDENTITY_MATRIX);
@@ -217,7 +242,7 @@ const playerSprite = await loadImage(playerShipUrl);
     ctx.fillStyle = 'white';
     ctx.font = '10px Visitor';
 
-    ctx.setTransform(1, 0, 0, 1, player.pos.x | 0, player.pos.y | 0);
+    ctx.setTransform(1, 0, 0, 1, renderX | 0, renderY | 0);
 
     ctx.drawImage(player.sprite, 0, 0);
 

@@ -1,24 +1,36 @@
+import { Keyboard } from 'contro';
 import { Pane } from 'tweakpane';
 import playerShipUrl from './assets/player-ship.png';
 import { loadImage } from './lib/asset-loader.ts';
 import { getResolution } from './lib/screen.ts';
 
+const keyboard = new Keyboard();
+
+// Controls
+const controls = {
+  thrust: keyboard.key('w'),
+  brake: keyboard.key('s'),
+  rotateLeft: keyboard.key('ArrowLeft'),
+  rotateRight: keyboard.key('ArrowRight'),
+};
+
 const pane = new Pane();
 
 const params = {
-  velocity: {
-    x: 60,
-    y: 30,
-  },
+  speed: 120,
+  rotationSpeed: 120,
+  friction: 0.9,
   interpolation: true,
 };
 
-pane.addBinding(params, 'velocity', {
+pane.addBinding(params, 'speed', { min: 0, max: 200, step: 1 });
+pane.addBinding(params, 'rotationSpeed', {
+  label: 'rot speed',
   min: 0,
-  max: 200,
+  max: 360,
   step: 1,
 });
-
+pane.addBinding(params, 'friction', { min: 0, max: 0.99, step: 0.01 });
 pane.addBinding(params, 'interpolation');
 
 const playerSprite = await loadImage(playerShipUrl);
@@ -55,35 +67,28 @@ const resize = () => {
 resize();
 window.addEventListener('resize', resize);
 
-const IDENTITY_MATRIX: DOMMatrix2DInit = {
-  a: 1,
-  b: 0,
-  c: 0,
-  d: 1,
-  e: 0,
-  f: 0,
-};
-
 const player = {
   pos: {
-    x: GAME_WIDTH * 0.25 - playerSprite.width / 2,
+    x: GAME_WIDTH / 2 - playerSprite.width / 2,
     y: GAME_HEIGHT / 2 - playerSprite.height / 2,
   },
   prevPos: {
     x: 0,
     y: 0,
   },
-  dir: {
-    x: 1,
-    y: 1,
+  vel: {
+    x: 0,
+    y: 0,
   },
-  vel: params.velocity,
+  rotation: 0,
+  prevRotation: 0,
   sprite: playerSprite as HTMLImageElement,
 };
 
-// Initialize prevPos to starting position
+// Initialize previous state
 player.prevPos.x = player.pos.x;
 player.prevPos.y = player.pos.y;
+player.prevRotation = player.rotation;
 
 const TARGET_FPS = 60;
 const STEP = 1000 / TARGET_FPS;
@@ -94,66 +99,104 @@ let deltaTimeAccumulator = 0;
 function frame(hrt: DOMHighResTimeStamp) {
   deltaTimeAccumulator += Math.min(1000, hrt - last);
 
-  // Store previous position before physics updates
+  // Store previous state before physics updates
   player.prevPos.x = player.pos.x;
   player.prevPos.y = player.pos.y;
+  player.prevRotation = player.rotation;
 
   while (deltaTimeAccumulator >= STEP) {
-    player.pos.x += player.vel.x * dt * player.dir.x;
-    player.pos.y += player.vel.y * dt * player.dir.y;
-
-    if (player.pos.x + player.sprite.width >= GAME_WIDTH) {
-      player.pos.x = GAME_WIDTH - player.sprite.width;
-      player.dir.x *= -1;
-    } else if (player.pos.x <= 0) {
-      player.pos.x = 0;
-      player.dir.x *= -1;
+    // Handle rotation
+    if (controls.rotateLeft.query()) {
+      player.rotation -= params.rotationSpeed * dt;
+    }
+    if (controls.rotateRight.query()) {
+      player.rotation += params.rotationSpeed * dt;
     }
 
-    if (player.pos.y + player.sprite.height >= GAME_HEIGHT) {
-      player.pos.y = GAME_HEIGHT - player.sprite.height;
-      player.dir.y *= -1;
-    } else if (player.pos.y <= 0) {
+    // Handle thrust (in the direction the ship is facing)
+    // Ship sprite points up, so 0 degrees = up = -Y
+    const radians = (player.rotation - 90) * (Math.PI / 180);
+
+    if (controls.thrust.query()) {
+      player.vel.x += Math.cos(radians) * params.speed * dt;
+      player.vel.y += Math.sin(radians) * params.speed * dt;
+    }
+
+    if (controls.brake.query()) {
+      player.vel.x -= Math.cos(radians) * params.speed * 0.5 * dt;
+      player.vel.y -= Math.sin(radians) * params.speed * 0.5 * dt;
+    }
+
+    // Apply friction (0 = frictionless, 1 = instant stop)
+    // Frame-rate independent: friction = fraction of velocity lost per second
+    const retention = Math.pow(1 - params.friction, dt);
+    player.vel.x *= retention;
+    player.vel.y *= retention;
+
+    // Update position
+    player.pos.x += player.vel.x * dt;
+    player.pos.y += player.vel.y * dt;
+
+    // Clamp to bounds
+    if (player.pos.x < 0) {
+      player.pos.x = 0;
+      player.vel.x = 0;
+    } else if (player.pos.x + player.sprite.width > GAME_WIDTH) {
+      player.pos.x = GAME_WIDTH - player.sprite.width;
+      player.vel.x = 0;
+    }
+
+    if (player.pos.y < 0) {
       player.pos.y = 0;
-      player.dir.y *= -1;
+      player.vel.y = 0;
+    } else if (player.pos.y + player.sprite.height > GAME_HEIGHT) {
+      player.pos.y = GAME_HEIGHT - player.sprite.height;
+      player.vel.y = 0;
     }
 
     deltaTimeAccumulator -= STEP;
   }
 
-  // Interpolate position for smooth rendering on high refresh rate displays
+  // Interpolate for smooth rendering on high refresh rate displays
   let renderX: number;
   let renderY: number;
+  let renderRotation: number;
 
   if (params.interpolation) {
     const alpha = deltaTimeAccumulator / STEP;
     renderX = player.prevPos.x + (player.pos.x - player.prevPos.x) * alpha;
     renderY = player.prevPos.y + (player.pos.y - player.prevPos.y) * alpha;
+    renderRotation =
+      player.prevRotation + (player.rotation - player.prevRotation) * alpha;
   } else {
     renderX = player.pos.x;
     renderY = player.pos.y;
+    renderRotation = player.rotation;
   }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.setTransform(IDENTITY_MATRIX);
+  // Calculate sprite center in game coordinates
+  const centerX = renderX + player.sprite.width / 2;
+  const centerY = renderY + player.sprite.height / 2;
 
-  ctx.fillStyle = 'white';
-  ctx.font = '10px Visitor';
+  // Scale to canvas coordinates
+  const canvasCenterX = (centerX * GAME_SCALE) | 0;
+  const canvasCenterY = (centerY * GAME_SCALE) | 0;
 
-  // Scale position to canvas coordinates at render time
-  ctx.setTransform(
-    GAME_SCALE,
-    0,
-    0,
-    GAME_SCALE,
-    (renderX * GAME_SCALE) | 0,
-    (renderY * GAME_SCALE) | 0,
+  ctx.save();
+
+  // Translate to sprite center, rotate, then draw offset by half sprite size
+  ctx.translate(canvasCenterX, canvasCenterY);
+  ctx.rotate((renderRotation * Math.PI) / 180);
+  ctx.scale(GAME_SCALE, GAME_SCALE);
+  ctx.drawImage(
+    player.sprite,
+    -player.sprite.width / 2,
+    -player.sprite.height / 2,
   );
 
-  ctx.drawImage(player.sprite, 0, 0);
-
-  ctx.setTransform(IDENTITY_MATRIX);
+  ctx.restore();
 
   last = hrt;
   requestAnimationFrame(frame);

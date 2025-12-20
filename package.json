@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "contro": "^2.2.0",
     "tweakpane": "^4.0.5"
   },
   "devDependencies": {

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      contro:
+        specifier: ^2.2.0
+        version: 2.2.0
       tweakpane:
         specifier: ^4.0.5
         version: 4.0.5
@@ -388,6 +391,9 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
+  contro@2.2.0:
+    resolution: {integrity: sha512-gIjXC7t3J8q5r61jOid0CsbcOPIOuUYG3eL+45P5SgKlpW427sukZ2aPhfPVVNuM4Tkw1iipGv8JvT2ax1E6wQ==}
+
   esbuild@0.27.2:
     resolution: {integrity: sha512-HyNQImnsOC7X9PMNaCIeAm4ISCQXs5a5YasTXVliKv4uuBo1dKrG0A+uQS8M5eXjVMnLg3WgXaKvprHlFJQffw==}
     engines: {node: '>=18'}
@@ -702,6 +708,8 @@ snapshots:
   '@types/css-font-loading-module@0.0.14': {}
 
   '@types/estree@1.0.8': {}
+
+  contro@2.2.0: {}
 
   esbuild@0.27.2:
     optionalDependencies:

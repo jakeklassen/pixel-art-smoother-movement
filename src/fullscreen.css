@@ -1,0 +1,20 @@
+html,
+body {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background-color: #1a1a1a;
+}
+
+canvas {
+  position: absolute;
+  background-color: black;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* Widen Tweakpane to prevent label wrapping
+   https://github.com/cocopon/tweakpane/issues/46#issuecomment-633388907 */
+.tp-dfwv {
+  min-width: 300px;
+}

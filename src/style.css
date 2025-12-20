@@ -26,3 +26,9 @@ canvas {
   width: calc(128px * 4);
   height: calc(128px * 4);
 }
+
+/* Widen Tweakpane to prevent label wrapping
+   https://github.com/cocopon/tweakpane/issues/46#issuecomment-633388907 */
+.tp-dfwv {
+  min-width: 300px;
+}

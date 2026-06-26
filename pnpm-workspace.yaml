@@ -1,0 +1,16 @@
+allowBuilds:
+  '@esbuild/linux-x64': true
+  '@rollup/rollup-linux-x64-gnu': true
+  '@rollup/rollup-linux-x64-musl': true
+  '@tweakpane/core': true
+  '@types/css-font-loading-module': true
+  '@types/estree': true
+  esbuild: true
+  nanoid: true
+  picocolors: true
+  postcss: true
+  rollup: true
+  source-map-js: true
+  tweakpane: true
+  typescript: true
+  vite: true

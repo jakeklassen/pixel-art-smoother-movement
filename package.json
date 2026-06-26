@@ -15,28 +15,9 @@
   "devDependencies": {
     "@tweakpane/core": "^2.0.5",
     "@types/css-font-loading-module": "^0.0.14",
-    "oxfmt": "^0.20.0",
-    "oxlint": "^1.35.0",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@esbuild/linux-x64",
-      "@rollup/rollup-linux-x64-gnu",
-      "@rollup/rollup-linux-x64-musl",
-      "@tweakpane/core",
-      "@types/css-font-loading-module",
-      "@types/estree",
-      "esbuild",
-      "nanoid",
-      "picocolors",
-      "postcss",
-      "rollup",
-      "source-map-js",
-      "tweakpane",
-      "typescript",
-      "vite"
-    ]
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.1.0"
   }
 }

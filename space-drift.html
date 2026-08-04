@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Drift — PixiJS port</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: #05060f;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    #canvas {
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvas"></canvas>
+  <script src="src/space-drift/main.ts" type="module"></script>
+</body>
+
+</html>

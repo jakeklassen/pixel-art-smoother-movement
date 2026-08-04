@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "contro": "^2.2.0",
+    "objecs": "^0.2.1",
+    "pixi-filters": "^6.1.5",
+    "pixi.js": "^8.19.0",
     "tweakpane": "^4.0.5"
   },
   "devDependencies": {

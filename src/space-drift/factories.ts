@@ -1,0 +1,123 @@
+import type { World } from 'objecs';
+import {
+  PLANET_COUNT,
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
+} from './constants.ts';
+import type { Entity } from './entity.ts';
+import { rndFromList, rndInt, rndRange, TAU } from './math.ts';
+import {
+  Pico8,
+  PLANET_PALETTES,
+  type Color,
+  type PlanetPalette,
+} from './palette.ts';
+
+export function createShip(world: World<Entity>, x: number, y: number) {
+  return world.createEntity({
+    transform: { position: { x, y }, rotation: 0 },
+    previous: { position: { x, y }, rotation: 0 },
+    velocity: { x: 0, y: 0 },
+    ship: { thrusting: false },
+  });
+}
+
+export function createPlanet(
+  world: World<Entity>,
+  x: number,
+  y: number,
+  radius: number,
+  palette: PlanetPalette,
+) {
+  world.createEntity({
+    transform: { position: { x, y }, rotation: 0 },
+    planet: {
+      radius,
+      dark: palette.dark,
+      base: palette.base,
+      light: palette.light,
+    },
+    pulse: { time: rndRange(0, TAU), speed: rndRange(0.5, 1.0), amplitude: 1 },
+  });
+}
+
+export function createStar(
+  world: World<Entity>,
+  x: number,
+  y: number,
+  depth: number,
+  color: Color,
+  size: number,
+) {
+  world.createEntity({
+    transform: { position: { x, y }, rotation: 0 },
+    star: { color, size, depth },
+    pulse: {
+      time: rndRange(0, TAU),
+      // Visible-but-subtle twinkle (~2-5s per cycle).
+      speed: rndRange(1.2, 3.0),
+      amplitude: rndRange(0.35, 0.65),
+    },
+  });
+}
+
+export function createParticle(
+  world: World<Entity>,
+  x: number,
+  y: number,
+  vx: number,
+  vy: number,
+  maxAge: number,
+  kind: string,
+  size: number,
+) {
+  world.createEntity({
+    transform: { position: { x, y }, rotation: 0 },
+    velocity: { x: vx, y: vy },
+    particle: { age: 0, maxAge, kind, size },
+  });
+}
+
+// Parallax star layers, far → near.
+const STAR_LAYERS: Array<{
+  count: number;
+  depth: number;
+  colors: Color[];
+  bigChance: number;
+}> = [
+    { count: 52, depth: 0.3, colors: [Pico8.darkGray, Pico8.lavender], bigChance: 0 },
+    { count: 36, depth: 0.55, colors: [Pico8.lavender, Pico8.lightGray], bigChance: 0 },
+    { count: 24, depth: 0.85, colors: [Pico8.lightGray, Pico8.white], bigChance: 0.2 },
+  ];
+
+/** Scatter parallax star layers; ring the planets around the spawn point. */
+export function populateWorld(world: World<Entity>) {
+  for (const layer of STAR_LAYERS) {
+    for (let i = 0; i < layer.count; i++) {
+      createStar(
+        world,
+        rndRange(0, WORLD_WIDTH),
+        rndRange(0, WORLD_HEIGHT),
+        layer.depth,
+        rndFromList(layer.colors),
+        Math.random() < layer.bigChance ? 2 : 1,
+      );
+    }
+  }
+
+  const centerX = WORLD_WIDTH / 2;
+  const centerY = WORLD_HEIGHT / 2;
+
+  for (let i = 0; i < PLANET_COUNT; i++) {
+    const angle = (i / PLANET_COUNT) * TAU + rndRange(-0.35, 0.35);
+    const distance = rndRange(72, 108) + i * rndRange(55, 90);
+
+    createPlanet(
+      world,
+      centerX + Math.cos(angle) * distance,
+      centerY + Math.sin(angle) * distance,
+      rndInt(10, 26),
+      rndFromList(PLANET_PALETTES),
+    );
+  }
+}

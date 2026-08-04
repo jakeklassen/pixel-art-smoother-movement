@@ -31,6 +31,14 @@ const DEG_TO_RAD = Math.PI / 180;
 const STAR_WRAP_W = (GAME_WIDTH + 2) * SCALE;
 const STAR_WRAP_H = (GAME_HEIGHT + 2) * SCALE;
 
+// Minimap geometry, in game (low-res) pixels — drawn into its own buffer and
+// blitted up ×SCALE, so it shares the pixel grid with the world.
+const MINIMAP_RADIUS = 14;
+const MINIMAP_MARGIN = 4;
+const MINIMAP_D = MINIMAP_RADIUS * 2 + 1; // 29
+const MINIMAP_ZOOM = 1 / 32; // minimap pixels per world pixel (~900px span)
+const MINIMAP_TICK_SWEEP = 0.6; // heading-tick arc width, radians (~34°)
+
 // Precomputed particle ramp colors (stepped, to stay "pixely").
 const FLAME = [
   toHex(Pico8.yellow),
@@ -65,6 +73,10 @@ export type RenderState = {
   starsGfx: Graphics;
   shipSprite: Sprite;
   lightSprite: Sprite;
+  minimapRT: RenderTexture;
+  minimapContent: Container;
+  minimapGfx: Graphics;
+  minimapSprite: Sprite;
 };
 
 export function initRender(
@@ -117,6 +129,29 @@ export function initRender(
   lightSprite.visible = false;
   scene.addChild(lightSprite);
 
+  // Minimap: drawn into a low-res circular buffer, blitted ×SCALE, top-right.
+  const minimapRT = RenderTexture.create({
+    width: MINIMAP_D,
+    height: MINIMAP_D,
+  });
+  minimapRT.source.scaleMode = 'nearest';
+  const minimapGfx = new Graphics();
+  const minimapContent = new Container();
+  minimapContent.addChild(minimapGfx);
+  // Circular clip so planet dots never spill outside the disc.
+  const minimapMask = new Graphics()
+    .circle(MINIMAP_RADIUS, MINIMAP_RADIUS, MINIMAP_RADIUS)
+    .fill(0xffffff);
+  minimapContent.addChild(minimapMask);
+  minimapContent.mask = minimapMask;
+  const minimapSprite = new Sprite(minimapRT);
+  minimapSprite.scale.set(SCALE);
+  minimapSprite.position.set(
+    (GAME_WIDTH - MINIMAP_MARGIN - MINIMAP_D) * SCALE,
+    MINIMAP_MARGIN * SCALE,
+  );
+  scene.addChild(minimapSprite);
+
   return {
     scene,
     worldRT,
@@ -126,6 +161,10 @@ export function initRender(
     starsGfx,
     shipSprite,
     lightSprite,
+    minimapRT,
+    minimapContent,
+    minimapGfx,
+    minimapSprite,
   };
 }
 
@@ -305,11 +344,70 @@ function updatePlanetLight(
   s.lightSprite.position.set(WINDOW_WIDTH / 2 + ox, WINDOW_HEIGHT / 2 + oy);
 }
 
+// A circular, ship-centred minimap: planets as dots, the ship as the single
+// white centre pixel, and a compass tick on the rim for heading. Drawn at
+// low-res into minimapGfx (blitted ×SCALE by minimapSprite).
+function drawMinimap(
+  s: RenderState,
+  shipX: number,
+  shipY: number,
+  rotationDeg: number,
+) {
+  const g = s.minimapGfx;
+  const r = MINIMAP_RADIUS;
+  const zoom = MINIMAP_ZOOM;
+  g.clear();
+
+  // Backdrop lifted just above the space colour so the disc reads as a panel.
+  g.circle(r, r, r).fill({ color: toHex(Pico8.darkBlue, 0.45), alpha: 0.85 });
+
+  for (const planet of planets.raw) {
+    const pl = planet.planet;
+    const dx = (planet.transform.position.x - shipX) * zoom;
+    const dy = (planet.transform.position.y - shipY) * zoom;
+    const dotR = Math.max(1, pl.radius * zoom);
+    if (dx * dx + dy * dy > (r + dotR) * (r + dotR)) continue;
+
+    // Floored to whole minimap pixels, matching the low-res world pass.
+    const ax = Math.floor(r + dx);
+    const ay = Math.floor(r + dy);
+    g.circle(ax, ay, dotR).fill(toHex(pl.base));
+    if (dotR > 1.5) {
+      g.circle(
+        ax + LIGHT_DIR_X * dotR * 0.4,
+        ay + LIGHT_DIR_Y * dotR * 0.4,
+        Math.max(1, dotR * 0.35),
+      ).fill(toHex(pl.light));
+    }
+  }
+
+  // The ship: the only white pixel on the map.
+  g.rect(r, r, 1, 1).fill(toHex(Pico8.white));
+
+  // Heading reads as a compass tick riding the rim, not a vector out of the pip.
+  const rad = rotationDeg * DEG_TO_RAD;
+  const headingAngle = Math.atan2(-Math.cos(rad), Math.sin(rad));
+  g.arc(
+    r,
+    r,
+    r - 1,
+    headingAngle - MINIMAP_TICK_SWEEP / 2,
+    headingAngle + MINIMAP_TICK_SWEEP / 2,
+  ).stroke({ width: 2, color: toHex(Pico8.blue) });
+
+  // Rim.
+  g.circle(r, r, r - 0.5).stroke({
+    width: 1,
+    color: toHex(Pico8.lavender, 0.8),
+  });
+}
+
 export function renderFrame(
   renderer: Renderer,
   s: RenderState,
   interpolate: boolean,
   subpixel: boolean,
+  minimap: boolean,
   alpha: number,
 ) {
   const ship = ships.raw[0];
@@ -355,4 +453,14 @@ export function renderFrame(
   s.worldSprite.position.set(blitX, blitY);
   s.shipSprite.rotation = shipRot * DEG_TO_RAD;
   updatePlanetLight(s, shipX, shipY, shipRot);
+
+  s.minimapSprite.visible = minimap;
+  if (minimap) {
+    drawMinimap(s, shipX, shipY, shipRot);
+    renderer.render({
+      container: s.minimapContent,
+      target: s.minimapRT,
+      clear: true,
+    });
+  }
 }

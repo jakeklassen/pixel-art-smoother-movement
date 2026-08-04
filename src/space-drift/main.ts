@@ -83,6 +83,7 @@ async function main() {
   let interpolation = true;
   let subpixel = true;
   let crt = false;
+  let minimap = true;
   setCrt(state.scene, crt);
 
   onPress('i', () => (interpolation = !interpolation));
@@ -91,6 +92,7 @@ async function main() {
     crt = !crt;
     setCrt(state.scene, crt);
   });
+  onPress('m', () => (minimap = !minimap));
 
   let accumulator = 0;
 
@@ -108,7 +110,7 @@ async function main() {
     updateEffects(dt);
 
     const alpha = interpolation ? accumulator / FIXED_DT : 1;
-    renderFrame(app.renderer, state, interpolation, subpixel, alpha);
+    renderFrame(app.renderer, state, interpolation, subpixel, minimap, alpha);
 
     const ship = getShip();
     const speed = Math.round(
@@ -118,7 +120,7 @@ async function main() {
     );
     fpsText.text = `fps ${Math.round(ticker.FPS)}`;
     spdText.text = `spd ${speed}`;
-    statusText.text = `interp ${box(interpolation)} [i]   subpix ${box(subpixel)} [p]   crt ${box(crt)} [c]   boost ${box(isDown('z'))} [z]`;
+    statusText.text = `interp ${box(interpolation)} [i]   subpix ${box(subpixel)} [p]   crt ${box(crt)} [c]   map ${box(minimap)} [m]   boost ${box(isDown('z'))} [z]`;
   });
 }
 

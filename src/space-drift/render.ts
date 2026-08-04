@@ -387,13 +387,17 @@ function drawMinimap(
   // Heading reads as a compass tick riding the rim, not a vector out of the pip.
   const rad = rotationDeg * DEG_TO_RAD;
   const headingAngle = Math.atan2(-Math.cos(rad), Math.sin(rad));
-  g.arc(
-    r,
-    r,
-    r - 1,
-    headingAngle - MINIMAP_TICK_SWEEP / 2,
-    headingAngle + MINIMAP_TICK_SWEEP / 2,
-  ).stroke({ width: 2, color: toHex(Pico8.blue) });
+  const tickR = r - 1;
+  const startA = headingAngle - MINIMAP_TICK_SWEEP / 2;
+  const endA = headingAngle + MINIMAP_TICK_SWEEP / 2;
+  // moveTo the arc's start first: Pixi's Graphics accumulates one path, and
+  // arc() otherwise draws a leader line from the previous point (the ship pixel
+  // at the centre) to the arc start — a spurious radius that swings with heading.
+  g.moveTo(r + tickR * Math.cos(startA), r + tickR * Math.sin(startA));
+  g.arc(r, r, tickR, startA, endA).stroke({
+    width: 2,
+    color: toHex(Pico8.blue),
+  });
 
   // Rim.
   g.circle(r, r, r - 0.5).stroke({

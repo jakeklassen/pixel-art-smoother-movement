@@ -95,6 +95,7 @@ async function main() {
   onPress('m', () => (minimap = !minimap));
 
   let accumulator = 0;
+  let boostHeldTime = 0;
 
   app.ticker.add((ticker: Ticker) => {
     const dt = Math.min(ticker.deltaMS / 1000, MAX_FRAME_TIME);
@@ -109,8 +110,18 @@ async function main() {
     pulseSystem(dt);
     updateEffects(dt);
 
+    boostHeldTime = isDown('z') ? boostHeldTime + dt : 0;
+
     const alpha = interpolation ? accumulator / FIXED_DT : 1;
-    renderFrame(app.renderer, state, interpolation, subpixel, minimap, alpha);
+    renderFrame(
+      app.renderer,
+      state,
+      interpolation,
+      subpixel,
+      minimap,
+      boostHeldTime,
+      alpha,
+    );
 
     const ship = getShip();
     const speed = Math.round(

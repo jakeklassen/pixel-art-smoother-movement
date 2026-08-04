@@ -35,9 +35,17 @@ export const STREAK_THRESHOLD = 140;
 export const STREAK_K = 0.07;
 export const STREAK_MAX = 46;
 
-// Screen shake ramps in above this speed.
+// Screen shake ramps in above this speed. (Currently unused — boost drives the
+// whole-frame shake below.)
 export const SHAKE_THRESHOLD = 200;
 export const SHAKE_MAX = 1.2;
+
+// Whole-frame boost shake: nothing until BOOST_SHAKE_DELAY into boost, then it
+// eases up over BOOST_SHAKE_RAMP to BOOST_SHAKE_AMP (game px) and holds. Applied
+// as a scene-wide translate, so the whole frame (ship included) shakes as one.
+export const BOOST_SHAKE_DELAY = 0.25; // seconds into boost before it starts
+export const BOOST_SHAKE_RAMP = 0.12; // ease-in time so it doesn't pop
+export const BOOST_SHAKE_AMP = 1.0; // sustained amplitude, game px
 
 export const PLANET_COUNT = 7;
 

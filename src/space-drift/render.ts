@@ -12,11 +12,12 @@ import {
   CANVAS_WIDTH,
   GAME_HEIGHT,
   GAME_WIDTH,
+  BOOST_SHAKE_AMP,
+  BOOST_SHAKE_DELAY,
+  BOOST_SHAKE_RAMP,
   LIGHT_DIR_X,
   LIGHT_DIR_Y,
   SCALE,
-  SHAKE_MAX,
-  SHAKE_THRESHOLD,
   STREAK_K,
   STREAK_MAX,
   STREAK_THRESHOLD,
@@ -412,6 +413,7 @@ export function renderFrame(
   interpolate: boolean,
   subpixel: boolean,
   minimap: boolean,
+  boostHeldTime: number,
   alpha: number,
 ) {
   const ship = ships.raw[0];
@@ -425,17 +427,9 @@ export function renderFrame(
     shipRot = lerp(ship.previous.rotation, shipRot, alpha);
   }
 
-  let camX = shipX - GAME_WIDTH / 2;
-  let camY = shipY - GAME_HEIGHT / 2;
-
-  const speed = Math.sqrt(
-    ship.velocity.x * ship.velocity.x + ship.velocity.y * ship.velocity.y,
-  );
-  if (speed > SHAKE_THRESHOLD) {
-    const amp = Math.min((speed - SHAKE_THRESHOLD) / 300, 1) * SHAKE_MAX;
-    camX += (Math.random() * 2 - 1) * amp;
-    camY += (Math.random() * 2 - 1) * amp;
-  }
+  // Camera stays smooth — shake is applied to the whole frame below.
+  const camX = shipX - GAME_WIDTH / 2;
+  const camY = shipY - GAME_HEIGHT / 2;
 
   const flooredCamX = Math.floor(camX);
   const flooredCamY = Math.floor(camY);
@@ -467,4 +461,21 @@ export function renderFrame(
       clear: true,
     });
   }
+
+  // Whole-frame screen shake (shmup-style): translate the entire scene by a
+  // whole-pixel random offset — everything, ship included, shakes together.
+  // Kicks in 250ms into boost, eases up, and holds while boost is held.
+  let shakeAmp = 0;
+  if (boostHeldTime > BOOST_SHAKE_DELAY) {
+    const ease = Math.min(
+      (boostHeldTime - BOOST_SHAKE_DELAY) / BOOST_SHAKE_RAMP,
+      1,
+    );
+    shakeAmp = BOOST_SHAKE_AMP * ease;
+  }
+  // Rounded to whole screen pixels so the pixel-perfect grid stays crisp.
+  s.scene.position.set(
+    Math.round((Math.random() * 2 - 1) * shakeAmp * SCALE),
+    Math.round((Math.random() * 2 - 1) * shakeAmp * SCALE),
+  );
 }

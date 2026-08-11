@@ -3,6 +3,7 @@ import {
   Application,
   Assets,
   Container,
+  Graphics,
   Rectangle,
   Text,
   Texture,
@@ -11,6 +12,7 @@ import {
 } from 'pixi.js';
 import shmupUrl from '../assets/shmup.png';
 import {
+  BOOST_FUEL_MAX,
   FIXED_DT,
   MAX_FRAME_TIME,
   WINDOW_HEIGHT,
@@ -25,7 +27,12 @@ import { isDown, onPress } from './input.ts';
 import { SPACE_COLOR, toHex } from './palette.ts';
 import { initQueries } from './queries.ts';
 import { initRender, renderFrame } from './render.ts';
-import { getShip, particleSystem, pulseSystem, shipSystem } from './sim.ts';
+import {
+  getShip,
+  particleSystem,
+  pulseSystem,
+  shipSystem,
+} from './sim.ts';
 
 async function main() {
   // Crisp pixels everywhere.
@@ -44,17 +51,21 @@ async function main() {
 
   const sheet: Texture = await Assets.load(shmupUrl);
   sheet.source.scaleMode = 'nearest';
-  const shipTexture = new Texture({
-    source: sheet.source,
-    frame: new Rectangle(16, 0, 8, 8),
-  });
+  // Top row of the sheet (8x8): frame 1 = bank left, 2 = standard, 3 = bank right.
+  const frame = (x: number) =>
+    new Texture({ source: sheet.source, frame: new Rectangle(x, 0, 8, 8) });
+  const shipTextures = {
+    standard: frame(16),
+    bankLeft: frame(8),
+    bankRight: frame(24),
+  };
 
   const world = new World<Entity>();
   createShip(world, WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
   populateWorld(world);
   initQueries(world);
 
-  const state = initRender(app.renderer, shipTexture);
+  const state = initRender(app.renderer, shipTextures);
   initEffects();
   app.stage.addChild(state.scene);
 
@@ -72,6 +83,21 @@ async function main() {
   };
   const fpsText = mkText(4);
   const spdText = mkText(22);
+
+  // Boost fuel meter: a labelled bar that drains on boost and refills otherwise.
+  const fuelLabel = new Text({
+    text: 'boost',
+    style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff },
+  });
+  fuelLabel.position.set(6, 42);
+  hud.addChild(fuelLabel);
+  const FUEL_BAR_X = 52;
+  const FUEL_BAR_Y = 44;
+  const FUEL_BAR_W = 120;
+  const FUEL_BAR_H = 10;
+  const fuelBar = new Graphics();
+  hud.addChild(fuelBar);
+
   const statusText = new Text({
     text: '',
     style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff },
@@ -110,7 +136,10 @@ async function main() {
     pulseSystem(dt);
     updateEffects(dt);
 
-    boostHeldTime = isDown('z') ? boostHeldTime + dt : 0;
+    const ship = getShip();
+
+    // Shake ramps only while actually boosting (Z held AND fuel remaining).
+    boostHeldTime = ship.ship.boosting ? boostHeldTime + dt : 0;
 
     const alpha = interpolation ? accumulator / FIXED_DT : 1;
     renderFrame(
@@ -123,7 +152,6 @@ async function main() {
       alpha,
     );
 
-    const ship = getShip();
     const speed = Math.round(
       Math.sqrt(
         ship.velocity.x * ship.velocity.x + ship.velocity.y * ship.velocity.y,
@@ -131,6 +159,28 @@ async function main() {
     );
     fpsText.text = `fps ${Math.round(ticker.FPS)}`;
     spdText.text = `spd ${speed}`;
+
+    // Fuel bar: fill scales with the tank; amber while boosting, cyan otherwise,
+    // red when nearly empty. Filled width floored to whole pixels to stay crisp.
+    const fuel = Math.max(0, Math.min(1, ship.ship.fuel / BOOST_FUEL_MAX));
+    const fillColor = ship.ship.boosting
+      ? 0xffa300
+      : fuel < 0.25
+        ? 0xff004d
+        : 0x29adff;
+    fuelBar.clear();
+    fuelBar
+      .rect(FUEL_BAR_X, FUEL_BAR_Y, FUEL_BAR_W, FUEL_BAR_H)
+      .fill({ color: 0x1d2b53, alpha: 0.85 });
+    if (fuel > 0) {
+      fuelBar
+        .rect(FUEL_BAR_X, FUEL_BAR_Y, Math.floor(FUEL_BAR_W * fuel), FUEL_BAR_H)
+        .fill(fillColor);
+    }
+    fuelBar
+      .rect(FUEL_BAR_X, FUEL_BAR_Y, FUEL_BAR_W, FUEL_BAR_H)
+      .stroke({ width: 1, color: 0xc2c3c7, alpha: 0.8 });
+
     statusText.text = `interp ${box(interpolation)} [i]   subpix ${box(subpixel)} [p]   crt ${box(crt)} [c]   map ${box(minimap)} [m]   boost ${box(isDown('z'))} [z]`;
   });
 }

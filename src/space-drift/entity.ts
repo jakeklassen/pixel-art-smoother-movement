@@ -13,7 +13,11 @@ export type Entity = {
   /** Snapshot of the transform at the previous fixed step, for interpolation. */
   previous?: Transform;
   velocity?: Vec2;
-  ship?: { thrusting: boolean };
+  ship?: {
+    thrusting: boolean;
+    boosting: boolean; // Z held and fuel remaining this frame
+    fuel: number; // boost fuel, 0..BOOST_FUEL_MAX
+  };
   planet?: { radius: number; dark: Color; base: Color; light: Color };
   /** `depth` is the parallax factor: 1 scrolls with the world, lower is farther. */
   star?: { color: Color; size: number; depth: number };

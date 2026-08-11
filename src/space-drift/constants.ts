@@ -1,5 +1,7 @@
-export const GAME_WIDTH = 128;
-export const GAME_HEIGHT = 128;
+// 16:9 low-res viewport, upscaled ×SCALE (256×144 → 1280×720). Same zoom as
+// before, just a larger play area.
+export const GAME_WIDTH = 256;
+export const GAME_HEIGHT = 144;
 export const SCALE = 5;
 
 // The render texture is one pixel larger than the view so the sub-pixel blit
@@ -22,13 +24,25 @@ export const MAX_FRAME_TIME = 0.25;
 export const SHIP_ROTATION_SPEED = 210; // degrees / second
 export const SHIP_THRUST = 280; // pixels / second^2
 export const SHIP_BRAKE = 0.6; // reverse-thrust fraction on the brake key
-export const SHIP_DRAG = 2.4; // velocity damping coefficient (per second)
-// Absolute speed clamp. Normal cruise settles ~SHIP_THRUST/SHIP_DRAG via drag;
-// this cap only bites while boosting.
+
+// Grip handling: velocity is split into forward (along the nose) and lateral
+// (sideways) components each step and dragged separately. High lateral drag =
+// the ship "grips" and goes where it points; forward drag sets cruise speed
+// (~SHIP_THRUST / SHIP_FORWARD_DRAG).
+export const SHIP_FORWARD_DRAG = 2.5;
+export const SHIP_LATERAL_DRAG = 9; // strong grip → go where you point
+
+// Absolute speed clamp — only the Z boost reaches it.
 export const SHIP_MAX_SPEED = 520;
 
-// Boost (hold Z): huge forward thrust so the ship rockets to the cap.
+// Boost (Z): huge forward thrust, gated by a fuel meter. Tapping fires a punchy
+// dash; holding sustains until the meter drains, then it refills when released.
 export const SHIP_BOOST_THRUST = 1500;
+export const BOOST_FUEL_MAX = 1; // full tank (arbitrary units)
+export const BOOST_DRAIN = 0.6; // fuel/sec while boosting (~1.7s from full)
+export const BOOST_REFILL = 0.32; // fuel/sec while not boosting (~3s to refill)
+export const BOOST_DASH_COST = 0.18; // fuel spent on a tap-dash
+export const BOOST_DASH_IMPULSE = 170; // forward px/s from a tap-dash
 
 // Star streaking during high-speed flight.
 export const STREAK_THRESHOLD = 140;

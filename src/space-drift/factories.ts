@@ -1,5 +1,6 @@
 import type { World } from 'objecs';
 import {
+  BOOST_FUEL_MAX,
   PLANET_COUNT,
   WORLD_HEIGHT,
   WORLD_WIDTH,
@@ -18,7 +19,11 @@ export function createShip(world: World<Entity>, x: number, y: number) {
     transform: { position: { x, y }, rotation: 0 },
     previous: { position: { x, y }, rotation: 0 },
     velocity: { x: 0, y: 0 },
-    ship: { thrusting: false },
+    ship: {
+      thrusting: false,
+      boosting: false,
+      fuel: BOOST_FUEL_MAX,
+    },
   });
 }
 
@@ -85,9 +90,9 @@ const STAR_LAYERS: Array<{
   colors: Color[];
   bigChance: number;
 }> = [
-    { count: 52, depth: 0.3, colors: [Pico8.darkGray, Pico8.lavender], bigChance: 0 },
-    { count: 36, depth: 0.55, colors: [Pico8.lavender, Pico8.lightGray], bigChance: 0 },
-    { count: 24, depth: 0.85, colors: [Pico8.lightGray, Pico8.white], bigChance: 0.2 },
+    { count: 116, depth: 0.3, colors: [Pico8.darkGray, Pico8.lavender], bigChance: 0 },
+    { count: 80, depth: 0.55, colors: [Pico8.lavender, Pico8.lightGray], bigChance: 0 },
+    { count: 54, depth: 0.85, colors: [Pico8.lightGray, Pico8.white], bigChance: 0.2 },
   ];
 
 /** Scatter parallax star layers; ring the planets around the spawn point. */

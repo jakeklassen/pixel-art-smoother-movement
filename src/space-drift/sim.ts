@@ -1,7 +1,13 @@
 import {
+  BOOST_DASH_COST,
+  BOOST_DASH_IMPULSE,
+  BOOST_DRAIN,
+  BOOST_FUEL_MAX,
+  BOOST_REFILL,
   SHIP_BOOST_THRUST,
   SHIP_BRAKE,
-  SHIP_DRAG,
+  SHIP_FORWARD_DRAG,
+  SHIP_LATERAL_DRAG,
   SHIP_MAX_SPEED,
   SHIP_ROTATION_SPEED,
   SHIP_THRUST,
@@ -13,7 +19,10 @@ import { particles, ships, pulses, world, type ShipEntity } from './queries.ts';
 
 const DEG_TO_RAD = Math.PI / 180;
 
-/** Advance the ship one fixed step: input, thrust, drag, clamp, integrate. */
+// Edge-detect the boost key across fixed steps (for the tap-dash).
+let prevBoost = false;
+
+/** Advance the ship one fixed step: input, thrust/boost, grip, integrate. */
 export function shipSystem(dt: number) {
   const rotateLeft = isDown('arrowleft', 'a');
   const rotateRight = isDown('arrowright', 'd');
@@ -26,31 +35,58 @@ export function shipSystem(dt: number) {
     ship.previous.position.y = ship.transform.position.y;
     ship.previous.rotation = ship.transform.rotation;
 
+    const st = ship.ship;
+
+    // A/D (or arrows) turn the nose.
     if (rotateLeft) ship.transform.rotation -= SHIP_ROTATION_SPEED * dt;
     if (rotateRight) ship.transform.rotation += SHIP_ROTATION_SPEED * dt;
 
-    // Heading: rotation 0 points straight up.
     const rad = ship.transform.rotation * DEG_TO_RAD;
-    const headingX = Math.sin(rad);
-    const headingY = -Math.cos(rad);
+    const hx = Math.sin(rad);
+    const hy = -Math.cos(rad);
 
-    ship.ship.thrusting = false;
-    if (thrust || boost) {
-      const power = boost ? SHIP_BOOST_THRUST : SHIP_THRUST;
-      ship.velocity.x += headingX * power * dt;
-      ship.velocity.y += headingY * power * dt;
-      ship.ship.thrusting = true;
-      emitThrust(ship, headingX, headingY, boost);
+    // Tap-dash: a punchy forward burst on the boost press-edge, if there's fuel.
+    if (boost && !prevBoost && st.fuel >= BOOST_DASH_COST) {
+      ship.velocity.x += hx * BOOST_DASH_IMPULSE;
+      ship.velocity.y += hy * BOOST_DASH_IMPULSE;
+      st.fuel -= BOOST_DASH_COST;
+    }
+
+    // Holding boost sustains huge thrust, but only while the tank has fuel.
+    const canBoost = boost && st.fuel > 0;
+
+    st.thrusting = false;
+    st.boosting = false;
+    if (thrust || canBoost) {
+      const power = canBoost ? SHIP_BOOST_THRUST : SHIP_THRUST;
+      ship.velocity.x += hx * power * dt;
+      ship.velocity.y += hy * power * dt;
+      st.thrusting = true;
+      st.boosting = canBoost;
+      emitThrust(ship, hx, hy, canBoost);
     }
     if (brake) {
-      ship.velocity.x -= headingX * SHIP_THRUST * SHIP_BRAKE * dt;
-      ship.velocity.y -= headingY * SHIP_THRUST * SHIP_BRAKE * dt;
+      ship.velocity.x -= hx * SHIP_THRUST * SHIP_BRAKE * dt;
+      ship.velocity.y -= hy * SHIP_THRUST * SHIP_BRAKE * dt;
     }
 
-    // Exponential drag — this is what makes the handling feel tight, not floaty.
-    const damping = Math.max(0, 1 - SHIP_DRAG * dt);
-    ship.velocity.x *= damping;
-    ship.velocity.y *= damping;
+    // Fuel: boosting drains it; anything else refills it.
+    if (canBoost) {
+      st.fuel = Math.max(0, st.fuel - BOOST_DRAIN * dt);
+    } else {
+      st.fuel = Math.min(BOOST_FUEL_MAX, st.fuel + BOOST_REFILL * dt);
+    }
+
+    // Grip: split velocity into forward (along the nose) and lateral, drag each
+    // separately. Heavy lateral drag makes the ship go where it points.
+    const perpX = -hy;
+    const perpY = hx;
+    const fwd = ship.velocity.x * hx + ship.velocity.y * hy;
+    const lat = ship.velocity.x * perpX + ship.velocity.y * perpY;
+    const newFwd = fwd * Math.max(0, 1 - SHIP_FORWARD_DRAG * dt);
+    const newLat = lat * Math.max(0, 1 - SHIP_LATERAL_DRAG * dt);
+    ship.velocity.x = hx * newFwd + perpX * newLat;
+    ship.velocity.y = hy * newFwd + perpY * newLat;
 
     const speedSq =
       ship.velocity.x * ship.velocity.x + ship.velocity.y * ship.velocity.y;
@@ -63,6 +99,8 @@ export function shipSystem(dt: number) {
     ship.transform.position.x += ship.velocity.x * dt;
     ship.transform.position.y += ship.velocity.y * dt;
   }
+
+  prevBoost = boost;
 }
 
 /** Exhaust: a converging cone of short-lived pixels streaming into world space. */

@@ -2,8 +2,19 @@
 // lowercased; arrow keys arrive as "arrowleft" etc.
 const held = new Set<string>();
 
+// Keys that would otherwise scroll the page.
+const SCROLL_KEYS = new Set([
+  ' ',
+  'arrowup',
+  'arrowdown',
+  'arrowleft',
+  'arrowright',
+]);
+
 window.addEventListener('keydown', (e) => {
-  held.add(e.key.toLowerCase());
+  const key = e.key.toLowerCase();
+  if (SCROLL_KEYS.has(key)) e.preventDefault();
+  held.add(key);
 });
 window.addEventListener('keyup', (e) => {
   held.delete(e.key.toLowerCase());

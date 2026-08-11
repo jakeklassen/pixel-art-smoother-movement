@@ -24,6 +24,7 @@ import {
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
 } from './constants.ts';
+import { isDown } from './input.ts';
 import { lerp, wrap } from './math.ts';
 import { Pico8, toHex } from './palette.ts';
 import { particles, planets, ships, stars } from './queries.ts';
@@ -65,8 +66,15 @@ function smokeColor(t: number): number {
   return SMOKE[2];
 }
 
+export type ShipTextures = {
+  standard: Texture;
+  bankLeft: Texture;
+  bankRight: Texture;
+};
+
 export type RenderState = {
   scene: Container; // everything post-processed by CRT/bloom
+  shipTextures: ShipTextures;
   worldRT: RenderTexture;
   worldContainer: Container;
   worldGfx: Graphics;
@@ -82,8 +90,9 @@ export type RenderState = {
 
 export function initRender(
   renderer: Renderer,
-  shipTexture: Texture,
+  shipTextures: ShipTextures,
 ): RenderState {
+  const shipTexture = shipTextures.standard;
   const scene = new Container();
 
   // Parallax stars (screen space), behind the world.
@@ -155,6 +164,7 @@ export function initRender(
 
   return {
     scene,
+    shipTextures,
     worldRT,
     worldContainer,
     worldGfx,
@@ -450,6 +460,15 @@ export function renderFrame(
 
   s.worldSprite.position.set(blitX, blitY);
   s.shipSprite.rotation = shipRot * DEG_TO_RAD;
+  // Bank sprite follows the steer keys, always (independent of drift).
+  const steeringLeft = isDown('arrowleft', 'a');
+  const steeringRight = isDown('arrowright', 'd');
+  s.shipSprite.texture =
+    steeringLeft && !steeringRight
+      ? s.shipTextures.bankLeft
+      : steeringRight && !steeringLeft
+        ? s.shipTextures.bankRight
+        : s.shipTextures.standard;
   updatePlanetLight(s, shipX, shipY, shipRot);
 
   s.minimapSprite.visible = minimap;

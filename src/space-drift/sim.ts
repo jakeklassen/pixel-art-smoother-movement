@@ -13,7 +13,7 @@ import {
   SHIP_THRUST,
 } from './constants.ts';
 import { createParticle } from './factories.ts';
-import { isDown } from './input.ts';
+import { actions } from './input.ts';
 import { rndRange } from './math.ts';
 import { particles, ships, pulses, world, type ShipEntity } from './queries.ts';
 
@@ -24,11 +24,11 @@ let prevBoost = false;
 
 /** Advance the ship one fixed step: input, thrust/boost, grip, integrate. */
 export function shipSystem(dt: number) {
-  const rotateLeft = isDown('arrowleft', 'a');
-  const rotateRight = isDown('arrowright', 'd');
-  const thrust = isDown('arrowup', 'w');
-  const brake = isDown('arrowdown', 's');
-  const boost = isDown('z');
+  const rotateLeft = actions.rotateLeft();
+  const rotateRight = actions.rotateRight();
+  const thrust = actions.thrust();
+  const brake = actions.brake();
+  const boost = actions.boost();
 
   for (const ship of ships.raw) {
     ship.previous.position.x = ship.transform.position.x;

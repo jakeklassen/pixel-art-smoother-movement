@@ -23,7 +23,7 @@ import {
 import { initEffects, setCrt, updateEffects } from './effects.ts';
 import type { Entity } from './entity.ts';
 import { createShip, populateWorld } from './factories.ts';
-import { isDown, onPress } from './input.ts';
+import { actions, gamepadConnected, onPress } from './input.ts';
 import { SPACE_COLOR, toHex } from './palette.ts';
 import { initQueries } from './queries.ts';
 import { initRender, renderFrame } from './render.ts';
@@ -181,7 +181,8 @@ async function main() {
       .rect(FUEL_BAR_X, FUEL_BAR_Y, FUEL_BAR_W, FUEL_BAR_H)
       .stroke({ width: 1, color: 0xc2c3c7, alpha: 0.8 });
 
-    statusText.text = `interp ${box(interpolation)} [i]   subpix ${box(subpixel)} [p]   crt ${box(crt)} [c]   map ${box(minimap)} [m]   boost ${box(isDown('z'))} [z]`;
+    const pad = gamepadConnected() ? '   gamepad' : '';
+    statusText.text = `interp ${box(interpolation)} [i]   subpix ${box(subpixel)} [p]   crt ${box(crt)} [c]   map ${box(minimap)} [m]   boost ${box(actions.boost())} [z]${pad}`;
   });
 }
 

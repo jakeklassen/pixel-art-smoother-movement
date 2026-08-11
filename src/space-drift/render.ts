@@ -24,7 +24,7 @@ import {
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
 } from './constants.ts';
-import { isDown } from './input.ts';
+import { actions } from './input.ts';
 import { lerp, wrap } from './math.ts';
 import { Pico8, toHex } from './palette.ts';
 import { particles, planets, ships, stars } from './queries.ts';
@@ -460,9 +460,9 @@ export function renderFrame(
 
   s.worldSprite.position.set(blitX, blitY);
   s.shipSprite.rotation = shipRot * DEG_TO_RAD;
-  // Bank sprite follows the steer keys, always (independent of drift).
-  const steeringLeft = isDown('arrowleft', 'a');
-  const steeringRight = isDown('arrowright', 'd');
+  // Bank sprite follows the steer input, always (keyboard or gamepad).
+  const steeringLeft = actions.rotateLeft();
+  const steeringRight = actions.rotateRight();
   s.shipSprite.texture =
     steeringLeft && !steeringRight
       ? s.shipTextures.bankLeft

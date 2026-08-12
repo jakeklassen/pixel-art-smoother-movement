@@ -27,6 +27,7 @@ import {
 import { lerp, wrap } from './math.ts';
 import { Pico8, toHex } from './palette.ts';
 import { bullets, enemies, particles, planets, ships, stars } from './queries.ts';
+import { getHomingCharge, getLockTarget } from './sim.ts';
 
 const DEG_TO_RAD = Math.PI / 180;
 const STAR_WRAP_W = (GAME_WIDTH + 2) * SCALE;
@@ -81,6 +82,7 @@ export type RenderState = {
   worldGfx: Graphics;
   entityLayer: Container; // bullets + enemies, drawn into the world RT
   spritePool: Sprite[]; // reused sprites for the entity layer
+  reticleGfx: Graphics; // lock-on brackets + charge pips, drawn into the RT
   worldSprite: Sprite;
   starsGfx: Graphics;
   shipSprite: Sprite;
@@ -119,6 +121,9 @@ export function initRender(
   const entityLayer = new Container();
   worldContainer.addChild(entityLayer);
   const spritePool: Sprite[] = [];
+  // Lock-on reticle sits above the entities, still inside the low-res RT.
+  const reticleGfx = new Graphics();
+  worldContainer.addChild(reticleGfx);
   const worldSprite = new Sprite(worldRT);
   worldSprite.scale.set(SCALE);
   scene.addChild(worldSprite);
@@ -192,6 +197,7 @@ export function initRender(
     worldGfx,
     entityLayer,
     spritePool,
+    reticleGfx,
     worldSprite,
     starsGfx,
     shipSprite,
@@ -324,7 +330,8 @@ function drawEntities(
     }
     const sprite = poolSprite(s, i++);
     sprite.texture = s.bulletTexture;
-    sprite.tint = 0xffffff;
+    // Homing missiles read orange so they're distinct from the straight shots.
+    sprite.tint = bullet.homing ? toHex(Pico8.orange) : 0xffffff;
     sprite.scale.set(1);
     sprite.rotation = br * DEG_TO_RAD;
     sprite.position.set(
@@ -335,6 +342,48 @@ function drawEntities(
 
   // Hide any sprites left over from a busier frame.
   for (; i < s.spritePool.length; i++) s.spritePool[i].visible = false;
+}
+
+let reticleAnim = 0;
+
+/** Lock-on brackets around the targeted enemy, plus charge pips above it. */
+function drawReticle(
+  s: RenderState,
+  flooredCamX: number,
+  flooredCamY: number,
+  dt: number,
+) {
+  const g = s.reticleGfx;
+  g.clear();
+  const target = getLockTarget();
+  if (!target || !target.transform) return;
+
+  reticleAnim += dt;
+  const cx = Math.floor(target.transform.position.x) - flooredCamX;
+  const cy = Math.floor(target.transform.position.y) - flooredCamY;
+  const { count, charging } = getHomingCharge();
+
+  // Brackets breathe by a pixel and glow orange while charging, red when idle.
+  const half = 6 + (Math.sin(reticleAnim * 7) > 0.4 ? 1 : 0);
+  const arm = 2;
+  const color = charging ? toHex(Pico8.orange) : toHex(Pico8.red);
+  const corner = (px: number, py: number, dx: number, dy: number) => {
+    g.rect(dx < 0 ? px : px - arm + 1, py, arm, 1).fill(color);
+    g.rect(px, dy < 0 ? py : py - arm + 1, 1, arm).fill(color);
+  };
+  corner(cx - half, cy - half, -1, -1);
+  corner(cx + half, cy - half, 1, -1);
+  corner(cx - half, cy + half, -1, 1);
+  corner(cx + half, cy + half, 1, 1);
+
+  // Charge pips above the target: 0 → 3 → 5 → 8 as the hold crosses thresholds.
+  if (count > 0) {
+    const startX = cx - (count - 1); // pips are 2px apart, centred
+    const py = cy - half - 3;
+    for (let i = 0; i < count; i++) {
+      g.rect(startX + i * 2, py, 1, 1).fill(toHex(Pico8.yellow));
+    }
+  }
 }
 
 function drawStars(
@@ -571,6 +620,7 @@ export function renderFrame(
 
   drawWorld(s, flooredCamX, flooredCamY, viewLeft, viewTop, viewRight, viewBottom);
   drawEntities(s, flooredCamX, flooredCamY, interpolate, alpha);
+  drawReticle(s, flooredCamX, flooredCamY, dt);
   renderer.render({ container: s.worldContainer, target: s.worldRT, clear: true });
 
   drawStars(s, camX, camY, subpixel, ship.velocity.x, ship.velocity.y);

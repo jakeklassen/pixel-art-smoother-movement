@@ -10,6 +10,11 @@ import {
   ENEMY_HIT_FLASH,
   ENEMY_RADIUS,
   ENEMY_RESPAWN_DELAY,
+  HOMING_CHARGE_MAX,
+  HOMING_LOCK_CONE_DEG,
+  HOMING_SPEED,
+  HOMING_SPREAD_DEG,
+  HOMING_STAGGER,
   MUZZLE_OFFSET,
   SHIP_BOOST_THRUST,
   SHIP_BRAKE,
@@ -20,7 +25,12 @@ import {
   SHIP_THRUST,
   SHOOT_INTERVAL,
 } from './constants.ts';
-import { createBullet, createParticle } from './factories.ts';
+import type { Entity } from './entity.ts';
+import {
+  createBullet,
+  createHomingBullet,
+  createParticle,
+} from './factories.ts';
 import { actions } from './input.ts';
 import { rndRange, TAU } from './math.ts';
 import {
@@ -264,6 +274,33 @@ export function bulletSystem(dt: number) {
       dead.push(bullet);
       continue;
     }
+
+    // Homing: steer the velocity vector toward the target, capped at turnRate,
+    // preserving speed. If the target has died/respawned, fly straight.
+    const homing = bullet.homing;
+    if (
+      homing &&
+      homing.target.transform &&
+      (!homing.target.enemy || homing.target.enemy.respawnTimer <= 0)
+    ) {
+      const dx = homing.target.transform.position.x - bullet.transform.position.x;
+      const dy = homing.target.transform.position.y - bullet.transform.position.y;
+      const cur = Math.atan2(bullet.velocity.y, bullet.velocity.x);
+      let diff = Math.atan2(dy, dx) - cur;
+      diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // wrap to [-π, π]
+      const maxStep = homing.turnRate * DEG_TO_RAD * dt;
+      const next = cur + Math.max(-maxStep, Math.min(maxStep, diff));
+      const speed = Math.sqrt(
+        bullet.velocity.x * bullet.velocity.x +
+          bullet.velocity.y * bullet.velocity.y,
+      );
+      bullet.velocity.x = Math.cos(next) * speed;
+      bullet.velocity.y = Math.sin(next) * speed;
+      // Point the sprite along travel (sprite's "up" is -y).
+      bullet.transform.rotation =
+        Math.atan2(Math.cos(next), -Math.sin(next)) / DEG_TO_RAD;
+    }
+
     bullet.transform.position.x += bullet.velocity.x * dt;
     bullet.transform.position.y += bullet.velocity.y * dt;
 
@@ -345,4 +382,134 @@ export function enemySystem(dt: number) {
       }
     }
   }
+}
+
+// ── Homing charge shot ──────────────────────────────────────────────────────
+
+/** Projectiles awarded for a charge held `t` seconds (0 below the 1s floor). */
+function chargeToCount(t: number): number {
+  if (t >= 3) return 8;
+  if (t >= 2) return 5;
+  if (t >= 1) return 3;
+  return 0;
+}
+
+/** True if `target` still exists and isn't mid-respawn. */
+function targetIsLive(target: Entity | null): target is Entity {
+  return (
+    target != null &&
+    target.transform != null &&
+    (!target.enemy || target.enemy.respawnTimer <= 0)
+  );
+}
+
+/** The live enemy most aligned with the nose within the lock cone, else null. */
+function findLockTarget(ship: ShipEntity): Entity | null {
+  const rad = ship.transform.rotation * DEG_TO_RAD;
+  const hx = Math.sin(rad);
+  const hy = -Math.cos(rad);
+  let best: Entity | null = null;
+  let bestDot = Math.cos((HOMING_LOCK_CONE_DEG / 2) * DEG_TO_RAD);
+  for (const enemy of enemies.raw) {
+    if (enemy.enemy.respawnTimer > 0) continue;
+    const dx = enemy.transform.position.x - ship.transform.position.x;
+    const dy = enemy.transform.position.y - ship.transform.position.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len < 0.001) continue;
+    const dot = (hx * dx + hy * dy) / len;
+    if (dot >= bestDot) {
+      bestDot = dot;
+      best = enemy;
+    }
+  }
+  return best;
+}
+
+let homingCharge = 0;
+let homingHeld = false;
+let lockTarget: Entity | null = null;
+// The target latched while charging, so a brief loss at release still fires.
+let latchedTarget: Entity | null = null;
+// Pending staggered volley emitted over subsequent steps.
+let volleyRemaining = 0;
+let volleyTotal = 0;
+let volleyTimer = 0;
+let volleyTarget: Entity | null = null;
+
+/** Charge while the homing button is held; on release fire a homing volley at
+ *  the locked target, then emit that volley staggered over the next steps. */
+export function homingSystem(dt: number) {
+  const ship = ships.raw[0];
+  // Recompute the lock every step so the reticle tracks whatever we're facing.
+  lockTarget = ship ? findLockTarget(ship) : null;
+
+  const held = actions.homing();
+  if (held) {
+    homingCharge = Math.min(HOMING_CHARGE_MAX, homingCharge + dt);
+    // Latch the most recent lock so a momentary loss on release still fires.
+    if (lockTarget) latchedTarget = lockTarget;
+  } else if (homingHeld) {
+    // Released: commit a volley if we charged enough and had a target.
+    const count = chargeToCount(homingCharge);
+    const target = targetIsLive(latchedTarget) ? latchedTarget : lockTarget;
+    if (count > 0 && target) {
+      volleyRemaining = count;
+      volleyTotal = count;
+      volleyTimer = 0;
+      volleyTarget = target;
+    }
+    homingCharge = 0;
+    latchedTarget = null;
+  }
+  homingHeld = held;
+
+  // Emit the queued volley one missile at a time, fanned across the nose.
+  if (volleyRemaining > 0 && volleyTarget && ship) {
+    volleyTimer -= dt;
+    while (volleyRemaining > 0 && volleyTimer <= 0) {
+      launchHomingMissile(ship, volleyTarget, volleyTotal - volleyRemaining);
+      volleyRemaining -= 1;
+      volleyTimer += HOMING_STAGGER;
+    }
+    if (volleyRemaining <= 0) volleyTarget = null;
+  }
+}
+
+function launchHomingMissile(
+  ship: ShipEntity,
+  target: Entity,
+  index: number,
+) {
+  // Fan the launch angle symmetrically around the nose (single missile = 0).
+  const spread =
+    volleyTotal > 1
+      ? (index / (volleyTotal - 1) - 0.5) * HOMING_SPREAD_DEG
+      : 0;
+  const angle = (ship.transform.rotation + spread) * DEG_TO_RAD;
+  const hx = Math.sin(angle);
+  const hy = -Math.cos(angle);
+  createHomingBullet(
+    world,
+    ship.transform.position.x + hx * MUZZLE_OFFSET,
+    ship.transform.position.y + hy * MUZZLE_OFFSET,
+    ship.transform.rotation + spread,
+    // Inherit ship velocity (steering rotates this vector, so it never trails).
+    ship.velocity.x + hx * HOMING_SPEED,
+    ship.velocity.y + hy * HOMING_SPEED,
+    target,
+  );
+}
+
+/** The currently locked enemy (for the reticle), or null. */
+export function getLockTarget(): Entity | null {
+  return lockTarget;
+}
+
+/** Charge readout for the HUD/reticle: pip count, seconds held, and hold state. */
+export function getHomingCharge(): {
+  count: number;
+  seconds: number;
+  charging: boolean;
+} {
+  return { count: chargeToCount(homingCharge), seconds: homingCharge, charging: homingHeld };
 }

@@ -31,6 +31,7 @@ import {
   bulletSystem,
   enemySystem,
   getShip,
+  homingSystem,
   particleSystem,
   pulseSystem,
   shipSystem,
@@ -155,6 +156,7 @@ async function main() {
     while (accumulator >= FIXED_DT) {
       shipSystem(FIXED_DT);
       shootSystem(FIXED_DT);
+      homingSystem(FIXED_DT);
       bulletSystem(FIXED_DT);
       enemySystem(FIXED_DT);
       particleSystem(FIXED_DT);

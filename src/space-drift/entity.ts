@@ -27,6 +27,8 @@ export type Entity = {
   particle?: { age: number; maxAge: number; kind: string; size: number };
   /** A player shot: flies along `transform.rotation`, expires after `maxAge`. */
   bullet?: { age: number; maxAge: number };
+  /** Makes a bullet steer toward `target` at up to `turnRate` deg/s. */
+  homing?: { turnRate: number; target: Entity };
   /** A target dummy. `hitFlash`/`respawnTimer` drive feedback and respawn. */
   enemy?: { health: number; hitFlash: number; respawnTimer: number };
 };

@@ -3,6 +3,8 @@ import {
   BOOST_FUEL_MAX,
   BULLET_LIFETIME,
   ENEMY_HEALTH,
+  HOMING_LIFETIME,
+  HOMING_TURN_RATE,
   PLANET_COUNT,
   WORLD_HEIGHT,
   WORLD_WIDTH,
@@ -42,6 +44,24 @@ export function createBullet(
     previous: { position: { x, y }, rotation },
     velocity: { x: vx, y: vy },
     bullet: { age: 0, maxAge: BULLET_LIFETIME },
+  });
+}
+
+export function createHomingBullet(
+  world: World<Entity>,
+  x: number,
+  y: number,
+  rotation: number,
+  vx: number,
+  vy: number,
+  target: Entity,
+) {
+  return world.createEntity({
+    transform: { position: { x, y }, rotation },
+    previous: { position: { x, y }, rotation },
+    velocity: { x: vx, y: vy },
+    bullet: { age: 0, maxAge: HOMING_LIFETIME },
+    homing: { turnRate: HOMING_TURN_RATE, target },
   });
 }
 

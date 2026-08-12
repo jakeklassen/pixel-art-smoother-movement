@@ -476,16 +476,43 @@ export function homingSystem(dt: number) {
   }
   homingHeld = held;
 
-  // Emit the queued volley one missile at a time, fanned across the nose.
+  // Emit the queued volley: the centre (or innermost pair) first, then each
+  // symmetric pair launched TOGETHER on the next tick, so the spread blooms
+  // outward like a bulb rather than sweeping across from one side.
   if (volleyRemaining > 0 && volleyTarget && ship) {
     volleyTimer -= dt;
     while (volleyRemaining > 0 && volleyTimer <= 0) {
-      launchHomingMissile(ship, volleyTarget, volleyTotal - volleyRemaining);
+      const i0 = volleyTotal - volleyRemaining;
+      const offset0 = fanOffsetDeg(i0, volleyTotal);
+      launchHomingMissile(ship, volleyTarget, i0);
       volleyRemaining -= 1;
+      // Fire the mirror partner in the same tick (skips the lone centre).
+      if (
+        volleyRemaining > 0 &&
+        Math.abs(fanOffsetDeg(volleyTotal - volleyRemaining, volleyTotal) + offset0) <
+          1e-6
+      ) {
+        launchHomingMissile(ship, volleyTarget, volleyTotal - volleyRemaining);
+        volleyRemaining -= 1;
+      }
       volleyTimer += HOMING_STAGGER;
     }
     if (volleyRemaining <= 0) volleyTarget = null;
   }
+}
+
+/**
+ * Fan offset (deg) for the `i`-th missile launched in a volley of `total`.
+ * Slots are evenly spaced across the fan, but launched CENTRE-OUT (centre
+ * first, then symmetric pairs fanning outward) so the volley blooms like a bulb
+ * from the ship instead of wiping across from one side to the other.
+ */
+function fanOffsetDeg(i: number, total: number): number {
+  if (total <= 1) return 0;
+  const fracs: number[] = [];
+  for (let k = 0; k < total; k++) fracs.push(k / (total - 1) - 0.5);
+  fracs.sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
+  return fracs[i] * HOMING_SPREAD_DEG;
 }
 
 function launchHomingMissile(
@@ -493,11 +520,7 @@ function launchHomingMissile(
   target: Entity,
   index: number,
 ) {
-  // Fan the launch angle symmetrically around the nose (single missile = 0).
-  const spread =
-    volleyTotal > 1
-      ? (index / (volleyTotal - 1) - 0.5) * HOMING_SPREAD_DEG
-      : 0;
+  const spread = fanOffsetDeg(index, volleyTotal);
   const angle = (ship.transform.rotation + spread) * DEG_TO_RAD;
   const hx = Math.sin(angle);
   const hy = -Math.cos(angle);

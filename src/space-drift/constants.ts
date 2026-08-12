@@ -84,7 +84,7 @@ export const HOMING_TURN_CLOSE_BOOST = 6; // extra turn-rate multiplier at point
 export const HOMING_SEEK_DELAY = 0.13; // seconds flown straight before homing kicks in
 export const HOMING_PROXIMITY = 3; // px bonus hit radius for homing missiles
 export const HOMING_SPREAD_DEG = 82; // wide initial fan-out across the volley
-export const HOMING_STAGGER = 0.085; // seconds between launches in a volley
+export const HOMING_STAGGER = 0.06; // seconds between symmetric pairs (centre-out bloom)
 export const HOMING_LIFETIME = 3.0; // seconds before a homing missile expires
 
 // Dummy enemy: a stationary target that takes ENEMY_HEALTH hits, then bursts

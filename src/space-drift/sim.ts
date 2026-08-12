@@ -12,11 +12,9 @@ import {
   ENEMY_RADIUS,
   ENEMY_REPATH_TIME,
   ENEMY_RESPAWN_DELAY,
-  ENEMY_ORBIT_LOOKAHEAD,
   ENEMY_SEPARATION,
   ENEMY_SEPARATION_FORCE,
   ENEMY_SIGHT_LOSE_MARGIN,
-  ENEMY_STANDOFF,
   ENEMY_THRUST,
   ENEMY_WAYPOINT_REACHED,
   GAME_HEIGHT,
@@ -428,7 +426,6 @@ export function enemySystem(dt: number) {
         enemy.enemy.waypoint.y =
           ny + rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS);
         enemy.enemy.repathTimer = rndRange(1, ENEMY_REPATH_TIME);
-        enemy.enemy.orbitDir = rndRange(0, 1) < 0.5 ? -1 : 1;
       }
     }
   }
@@ -455,13 +452,9 @@ export function enemyAiSystem(dt: number) {
     // Sight is tied to the viewport: an enemy only spots the player once it is
     // on screen (within the view around the ship), and disengages once it drops
     // well past the edge — so nothing rushes in from off-screen.
-    let toPlayerX = 0;
-    let toPlayerY = 0;
     if (ship) {
       const px = ship.transform.position.x - enemy.transform.position.x;
       const py = ship.transform.position.y - enemy.transform.position.y;
-      toPlayerX = px;
-      toPlayerY = py;
       const halfW = GAME_WIDTH / 2;
       const halfH = GAME_HEIGHT / 2;
       const onScreen = Math.abs(px) <= halfW && Math.abs(py) <= halfH;
@@ -479,14 +472,11 @@ export function enemyAiSystem(dt: number) {
     let goalY: number;
     let wantThrust: boolean;
     if (e.state === 'engage' && ship) {
-      // Orbit: aim at a point on the standoff circle a little ahead of the
-      // enemy's current angle around the player. It flies onto the ring and
-      // keeps chasing the advancing point, so it has to steer a real circle —
-      // it can't park and just rotate to face the player.
-      const angleAroundPlayer = Math.atan2(-toPlayerY, -toPlayerX);
-      const aimAngle = angleAroundPlayer + e.orbitDir * ENEMY_ORBIT_LOOKAHEAD;
-      goalX = ship.transform.position.x + Math.cos(aimAngle) * ENEMY_STANDOFF;
-      goalY = ship.transform.position.y + Math.sin(aimAngle) * ENEMY_STANDOFF;
+      // Pursuit: aim straight at the player and always thrust. Momentum + the
+      // turn-rate cap make it close in, blow past, and loop back — it reaches
+      // the player instead of holding distance.
+      goalX = ship.transform.position.x;
+      goalY = ship.transform.position.y;
       wantThrust = true;
     } else {
       e.repathTimer -= dt;

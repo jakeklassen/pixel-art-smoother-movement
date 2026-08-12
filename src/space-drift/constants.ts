@@ -113,12 +113,9 @@ export const ENEMY_RESPAWN_DELAY = 1.2; // seconds dead before respawn
 // they never rush in from off-screen — disengaging once well past the edge.
 export const ENEMY_THRUST = 240; // px/s² (vs SHIP_THRUST 280): slightly slower
 export const ENEMY_SIGHT_LOSE_MARGIN = 48; // px past the view edge → back to patrol
-// Engage = orbit: the enemy chases a point on a circle of ENEMY_STANDOFF radius
-// around the player, LOOKAHEAD radians ahead of its own angle — so it flies onto
-// the ring and around it, and must actually steer to keep up (never parks and
-// rotates in place). Bigger LOOKAHEAD = it cuts across more aggressively.
-export const ENEMY_STANDOFF = 58; // px orbit radius it holds in engage
-export const ENEMY_ORBIT_LOOKAHEAD = 0.6; // radians ahead around the circle
+// Engage = pursuit: aim straight at the player and thrust continuously. It
+// reaches the player, overshoots on momentum, and loops back at full turn rate
+// (same rotation limit as the ship) — a dogfight, not a stand-off orbit.
 export const ENEMY_PATROL_RADIUS = 200; // px spread of the next patrol waypoint
 export const ENEMY_WAYPOINT_REACHED = 22; // px to count a waypoint as reached
 export const ENEMY_REPATH_TIME = 4; // seconds before repicking a waypoint anyway

@@ -38,7 +38,5 @@ export type Entity = {
     state: 'patrol' | 'engage';
     waypoint: Vec2;
     repathTimer: number;
-    /** +1 / -1: which way it circles the player while engaging. */
-    orbitDir: number;
   };
 };

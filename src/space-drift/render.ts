@@ -416,6 +416,17 @@ function drawMinimap(
   });
 }
 
+// Bank-sprite state, smoothed to avoid flicker. `bankTurn` is an EMA of the
+// per-step turn rate (a raw stick settles with tiny alternating deltas that
+// would otherwise flip the sprite every frame); `bankState` latches the chosen
+// bank with hysteresis so it only engages on a clear turn and only releases
+// once the turn has clearly stopped.
+let bankTurn = 0;
+let bankState = 0; // -1 left, 0 level, 1 right
+const BANK_SMOOTH = 0.15; // EMA weight for the new sample (heavier smoothing)
+const BANK_ENTER = 1.3; // deg/step (of ~3.5 max) to start banking
+const BANK_EXIT = 0.4; // deg/step to return to level
+
 export function renderFrame(
   renderer: Renderer,
   s: RenderState,
@@ -461,12 +472,16 @@ export function renderFrame(
   s.shipSprite.rotation = shipRot * DEG_TO_RAD;
   // Bank sprite follows the actual turn taken this step, so it works the same
   // for keys, D-pad, and analog stick-aim: rotation increasing = clockwise =
-  // bank right. (Threshold guards against interpolation jitter.)
+  // bank right. Smoothed + hysteresis so a settled stick doesn't flicker it.
   const turnDelta = ship.transform.rotation - ship.previous.rotation;
+  bankTurn = bankTurn * (1 - BANK_SMOOTH) + turnDelta * BANK_SMOOTH;
+  if (bankTurn > BANK_ENTER) bankState = 1;
+  else if (bankTurn < -BANK_ENTER) bankState = -1;
+  else if (Math.abs(bankTurn) < BANK_EXIT) bankState = 0;
   s.shipSprite.texture =
-    turnDelta < -0.05
+    bankState < 0
       ? s.shipTextures.bankLeft
-      : turnDelta > 0.05
+      : bankState > 0
         ? s.shipTextures.bankRight
         : s.shipTextures.standard;
   updatePlanetLight(s, shipX, shipY, shipRot);

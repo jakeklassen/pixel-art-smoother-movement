@@ -180,6 +180,7 @@ async function main() {
       minimap,
       boostHeldTime,
       alpha,
+      dt,
     );
 
     const speed = Math.round(

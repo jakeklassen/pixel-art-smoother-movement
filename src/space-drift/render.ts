@@ -80,6 +80,7 @@ export type RenderState = {
   worldSprite: Sprite;
   starsGfx: Graphics;
   shipSprite: Sprite;
+  bankFadeSprite: Sprite; // outgoing bank frame, cross-fading out over a swap
   lightSprite: Sprite;
   minimapRT: RenderTexture;
   minimapContent: Container;
@@ -117,6 +118,15 @@ export function initRender(
   shipSprite.scale.set(SCALE);
   shipSprite.position.set(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
   scene.addChild(shipSprite);
+
+  // Cross-fade layer: shows the outgoing frame on top of the ship and fades it
+  // out over a few frames so a bank swap dissolves instead of popping.
+  const bankFadeSprite = new Sprite(shipTexture);
+  bankFadeSprite.anchor.set(0.5);
+  bankFadeSprite.scale.set(SCALE);
+  bankFadeSprite.position.set(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+  bankFadeSprite.visible = false;
+  scene.addChild(bankFadeSprite);
 
   // Planet light: a white silhouette of the ship, tinted per-frame and added
   // over the hull so a planet's hue washes the whole silhouette.
@@ -170,6 +180,7 @@ export function initRender(
     worldSprite,
     starsGfx,
     shipSprite,
+    bankFadeSprite,
     lightSprite,
     minimapRT,
     minimapContent,
@@ -427,6 +438,10 @@ const BANK_SMOOTH = 0.15; // EMA weight for the new sample (heavier smoothing)
 const BANK_ENTER = 1.3; // deg/step (of ~3.5 max) to start banking
 const BANK_EXIT = 0.4; // deg/step to return to level
 
+// Cross-fade the outgoing frame out over BANK_FADE seconds on each swap.
+let bankFade = 0; // remaining fade, 0..1
+const BANK_FADE = 0.09; // seconds
+
 export function renderFrame(
   renderer: Renderer,
   s: RenderState,
@@ -435,6 +450,7 @@ export function renderFrame(
   minimap: boolean,
   boostHeldTime: number,
   alpha: number,
+  dt: number,
 ) {
   const ship = ships.raw[0];
 
@@ -478,12 +494,23 @@ export function renderFrame(
   if (bankTurn > BANK_ENTER) bankState = 1;
   else if (bankTurn < -BANK_ENTER) bankState = -1;
   else if (Math.abs(bankTurn) < BANK_EXIT) bankState = 0;
-  s.shipSprite.texture =
+  const nextTexture =
     bankState < 0
       ? s.shipTextures.bankLeft
       : bankState > 0
         ? s.shipTextures.bankRight
         : s.shipTextures.standard;
+  // On a swap, park the outgoing frame on the fade layer and dissolve it out so
+  // the change reads as a soft cross-fade rather than an abrupt pop.
+  if (nextTexture !== s.shipSprite.texture) {
+    s.bankFadeSprite.texture = s.shipSprite.texture;
+    bankFade = 1;
+    s.shipSprite.texture = nextTexture;
+  }
+  bankFade = Math.max(0, bankFade - dt / BANK_FADE);
+  s.bankFadeSprite.visible = bankFade > 0;
+  s.bankFadeSprite.alpha = bankFade;
+  s.bankFadeSprite.rotation = s.shipSprite.rotation;
   updatePlanetLight(s, shipX, shipY, shipRot);
 
   s.minimapSprite.visible = minimap;

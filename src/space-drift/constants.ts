@@ -1,13 +1,17 @@
-// 16:9 low-res viewport, upscaled ×SCALE. SCALE must stay an integer so the
-// pixel art never shimmers (the canvas is shown 1:1, so WINDOW need not be
-// exactly 1280 wide). Zoom is set purely by SCALE — pick a row and copy the
-// GAME_WIDTH/HEIGHT/SCALE triple:
+// Low-res viewport, upscaled ×SCALE. SCALE must stay an integer so the pixel
+// art never shimmers (the canvas is shown 1:1, so WINDOW need not be a specific
+// size). Zoom is set by SCALE; aspect by the WIDTH:HEIGHT ratio.
+//   Current: 256×192 ×4 = 1024×768 — 4:3 at the scale-4 zoom (32px ship), so
+//   it's boxier than 16:9 (more vertical warning) without feeling zoomed out.
+//   Other 4:3 options: 320×240 ×3 = 960×720 (fits 720 but smaller sprites),
+//   320×240 ×4 = 1280×960 (roomier, needs a >960-tall window).
+// Reference ladder (the original 16:9 zoom steps) — copy a triple to change:
 //   256×144 ×5 = 1280×720 — 1.00× (original baseline; felt cramped)
-//   320×180 ×4 = 1280×720 — 1.25× more area   ← current
+//   320×180 ×4 = 1280×720 — 1.25× more area (previous 16:9 setting)
 //   426×240 ×3 = 1278×720 — 1.67× more area
 //   640×360 ×2 = 1280×720 — 2.50× more area (quite zoomed out)
-export const GAME_WIDTH = 320;
-export const GAME_HEIGHT = 180;
+export const GAME_WIDTH = 256;
+export const GAME_HEIGHT = 192;
 export const SCALE = 4;
 
 // The render texture is one pixel larger than the view so the sub-pixel blit
@@ -75,6 +79,9 @@ export const BULLET_LIFETIME = 1.1; // seconds before a bullet expires
 export const BULLET_RADIUS = 2; // px, for hit tests
 export const SHOOT_INTERVAL = 0.13; // seconds between shots while held
 export const MUZZLE_OFFSET = 5; // px ahead of the ship centre to spawn bullets
+// Double-wide shot: two parallel bullets offset ±this far to each side of the
+// nose line, so a moving target is easier to catch than with a single stream.
+export const SHOT_SPREAD = 3;
 
 // Homing charge shot (hold the right face button / X key). The lock-on picks
 // the nearest on-screen enemy; the longer you hold, the bigger the volley:
@@ -100,11 +107,12 @@ export const ENEMY_RADIUS = 5; // px, hit-test radius
 export const ENEMY_HIT_FLASH = 0.08; // seconds of hit flash
 export const ENEMY_RESPAWN_DELAY = 1.2; // seconds dead before respawn
 
-// Enemy AI. Enemies fly with the player's handling minus the boost: they patrol
-// random waypoints, and pursue once the player is within sight (with hysteresis
-// so they don't flip-flop at the edge). Movement reuses the SHIP_* handling.
-export const ENEMY_SIGHT_RANGE = 200; // px to spot the player → engage
-export const ENEMY_SIGHT_LOSE = 280; // px to lose the player → back to patrol
+// Enemy AI. Enemies fly with the player's handling minus the boost, a hair
+// slower (ENEMY_THRUST). They patrol random waypoints, and only spot the player
+// once they're actually ON SCREEN (within the viewport around the ship) — so
+// they never rush in from off-screen — disengaging once well past the edge.
+export const ENEMY_THRUST = 240; // px/s² (vs SHIP_THRUST 280): slightly slower
+export const ENEMY_SIGHT_LOSE_MARGIN = 48; // px past the view edge → back to patrol
 export const ENEMY_STANDOFF = 44; // px: stop closing once this near in engage
 export const ENEMY_PATROL_RADIUS = 200; // px spread of the next patrol waypoint
 export const ENEMY_WAYPOINT_REACHED = 22; // px to count a waypoint as reached

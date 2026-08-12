@@ -14,9 +14,9 @@ import {
   ENEMY_RESPAWN_DELAY,
   ENEMY_SEPARATION,
   ENEMY_SEPARATION_FORCE,
-  ENEMY_SIGHT_LOSE,
-  ENEMY_SIGHT_RANGE,
+  ENEMY_SIGHT_LOSE_MARGIN,
   ENEMY_STANDOFF,
+  ENEMY_THRUST,
   ENEMY_WAYPOINT_REACHED,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -30,6 +30,7 @@ import {
   HOMING_STAGGER,
   HOMING_TURN_CLOSE_BOOST,
   MUZZLE_OFFSET,
+  SHOT_SPREAD,
   SHIP_BOOST_THRUST,
   SHIP_BRAKE,
   SHIP_FORWARD_DRAG,
@@ -265,15 +266,24 @@ export function shootSystem(dt: number) {
   const rad = ship.transform.rotation * DEG_TO_RAD;
   const hx = Math.sin(rad);
   const hy = -Math.cos(rad);
-  createBullet(
-    world,
-    ship.transform.position.x + hx * MUZZLE_OFFSET,
-    ship.transform.position.y + hy * MUZZLE_OFFSET,
-    ship.transform.rotation,
-    // Inherit the ship's velocity so a boosting player can't outrun the shot.
-    ship.velocity.x + hx * BULLET_SPEED,
-    ship.velocity.y + hy * BULLET_SPEED,
-  );
+  const perpX = -hy;
+  const perpY = hx;
+  const muzzleX = ship.transform.position.x + hx * MUZZLE_OFFSET;
+  const muzzleY = ship.transform.position.y + hy * MUZZLE_OFFSET;
+  // Inherit the ship's velocity so a boosting player can't outrun the shot.
+  const vx = ship.velocity.x + hx * BULLET_SPEED;
+  const vy = ship.velocity.y + hy * BULLET_SPEED;
+  // Double-wide: two parallel bullets offset left/right of the nose line.
+  for (const side of [-1, 1]) {
+    createBullet(
+      world,
+      muzzleX + perpX * SHOT_SPREAD * side,
+      muzzleY + perpY * SHOT_SPREAD * side,
+      ship.transform.rotation,
+      vx,
+      vy,
+    );
+  }
 }
 
 /** Advance bullets, test them against live enemies, and reap the spent ones. */
@@ -440,17 +450,22 @@ export function enemyAiSystem(dt: number) {
     enemy.previous.position.y = enemy.transform.position.y;
     enemy.previous.rotation = enemy.transform.rotation;
 
-    // Sight check (hysteresis: spot inside RANGE, lose outside LOSE).
+    // Sight is tied to the viewport: an enemy only spots the player once it is
+    // on screen (within the view around the ship), and disengages once it drops
+    // well past the edge — so nothing rushes in from off-screen.
     let playerDist = Infinity;
     if (ship) {
       const px = ship.transform.position.x - enemy.transform.position.x;
       const py = ship.transform.position.y - enemy.transform.position.y;
       playerDist = Math.sqrt(px * px + py * py);
-      if (e.state === 'patrol' && playerDist <= ENEMY_SIGHT_RANGE) {
-        e.state = 'engage';
-      } else if (e.state === 'engage' && playerDist > ENEMY_SIGHT_LOSE) {
-        e.state = 'patrol';
-      }
+      const halfW = GAME_WIDTH / 2;
+      const halfH = GAME_HEIGHT / 2;
+      const onScreen = Math.abs(px) <= halfW && Math.abs(py) <= halfH;
+      const offScreen =
+        Math.abs(px) > halfW + ENEMY_SIGHT_LOSE_MARGIN ||
+        Math.abs(py) > halfH + ENEMY_SIGHT_LOSE_MARGIN;
+      if (e.state === 'patrol' && onScreen) e.state = 'engage';
+      else if (e.state === 'engage' && offScreen) e.state = 'patrol';
     } else if (e.state === 'engage') {
       e.state = 'patrol';
     }
@@ -505,8 +520,8 @@ export function enemyAiSystem(dt: number) {
     // Thrust only once roughly aimed, so it arcs onto its heading like a ship
     // banking around rather than powering off sideways.
     if (wantThrust && Math.abs(diff) < 70) {
-      enemy.velocity.x += hx * SHIP_THRUST * dt;
-      enemy.velocity.y += hy * SHIP_THRUST * dt;
+      enemy.velocity.x += hx * ENEMY_THRUST * dt;
+      enemy.velocity.y += hy * ENEMY_THRUST * dt;
     }
 
     // Grip: forward/lateral split dragged separately (same as the ship).

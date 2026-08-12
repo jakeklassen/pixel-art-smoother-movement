@@ -82,6 +82,7 @@ export function createEnemy(world: World<Entity>, x: number, y: number) {
         y: y + rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS),
       },
       repathTimer: rndRange(1, ENEMY_REPATH_TIME),
+      orbitDir: rndRange(0, 1) < 0.5 ? -1 : 1,
     },
   });
 }

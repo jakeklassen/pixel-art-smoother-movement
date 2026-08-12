@@ -517,9 +517,11 @@ export function enemyAiSystem(dt: number) {
     const hx = Math.sin(rad);
     const hy = -Math.cos(rad);
 
-    // Thrust only once roughly aimed, so it arcs onto its heading like a ship
-    // banking around rather than powering off sideways.
-    if (wantThrust && Math.abs(diff) < 70) {
+    // Thrust like a player holding the stick — always along the nose, never
+    // gated on heading. Momentum + the capped turn rate make it bank and arc
+    // onto its heading (grip corrects the slide), so it can't stop dead to
+    // pivot toward the player the way a player ship never could.
+    if (wantThrust) {
       enemy.velocity.x += hx * ENEMY_THRUST * dt;
       enemy.velocity.y += hy * ENEMY_THRUST * dt;
     }

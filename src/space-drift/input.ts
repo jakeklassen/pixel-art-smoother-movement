@@ -37,8 +37,8 @@ const key = {
 
 // Gamepad controls (standard mapping). Locomotion lives on the triggers and the
 // left stick so the face buttons stay free for actions (boost=X, shoot=B soon):
-//   forward/gas = stick up  or Right Trigger   (the "W / Up" of the pad)
-//   brake       = stick down or Left Trigger
+//   forward/gas = stick (any direction) or Right Trigger   (the "W / Up" of the pad)
+//   brake       = Left Trigger
 //   steer       = stick left/right or D-pad
 //   boost       = X (left face button)
 const pad = {
@@ -54,6 +54,15 @@ const pad = {
 const stick = (): { x: number; y: number } =>
   gamepad.isConnected() ? pad.leftStick.query() : { x: 0, y: 0 };
 
+// Any stick deflection past the deadzone counts as "gas". The ship thrusts
+// along its nose, not toward the stick, so pushing the stick in ANY direction
+// means forward: a hard left/right turn keeps the throttle open instead of
+// cutting out, and pulling down never becomes an accidental reverse.
+const stickGas = (): boolean => {
+  const s = stick();
+  return s.x * s.x + s.y * s.y > STICK_DEADZONE * STICK_DEADZONE;
+};
+
 /** High-level game actions, true while active on either device. */
 export const actions = {
   rotateLeft: (): boolean =>
@@ -67,15 +76,9 @@ export const actions = {
     pad.dpadRight.query() ||
     stick().x > STICK_DEADZONE,
   thrust: (): boolean =>
-    key.up.query() ||
-    key.w.query() ||
-    pad.rightTrigger.query() ||
-    stick().y < -STICK_DEADZONE,
+    key.up.query() || key.w.query() || pad.rightTrigger.query() || stickGas(),
   brake: (): boolean =>
-    key.down.query() ||
-    key.s.query() ||
-    pad.leftTrigger.query() ||
-    stick().y > STICK_DEADZONE,
+    key.down.query() || key.s.query() || pad.leftTrigger.query(),
   boost: (): boolean => key.z.query() || pad.x.query(),
 };
 

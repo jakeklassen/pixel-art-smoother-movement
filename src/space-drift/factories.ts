@@ -3,6 +3,8 @@ import {
   BOOST_FUEL_MAX,
   BULLET_LIFETIME,
   ENEMY_HEALTH,
+  ENEMY_PATROL_RADIUS,
+  ENEMY_REPATH_TIME,
   HOMING_LIFETIME,
   HOMING_TURN_RATE,
   PLANET_COUNT,
@@ -67,8 +69,20 @@ export function createHomingBullet(
 
 export function createEnemy(world: World<Entity>, x: number, y: number) {
   return world.createEntity({
-    transform: { position: { x, y }, rotation: 0 },
-    enemy: { health: ENEMY_HEALTH, hitFlash: 0, respawnTimer: 0 },
+    transform: { position: { x, y }, rotation: rndRange(0, 360) },
+    previous: { position: { x, y }, rotation: 0 },
+    velocity: { x: 0, y: 0 },
+    enemy: {
+      health: ENEMY_HEALTH,
+      hitFlash: 0,
+      respawnTimer: 0,
+      state: 'patrol',
+      waypoint: {
+        x: x + rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS),
+        y: y + rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS),
+      },
+      repathTimer: rndRange(1, ENEMY_REPATH_TIME),
+    },
   });
 }
 

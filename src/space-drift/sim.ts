@@ -8,8 +8,16 @@ import {
   BULLET_SPEED,
   ENEMY_HEALTH,
   ENEMY_HIT_FLASH,
+  ENEMY_PATROL_RADIUS,
   ENEMY_RADIUS,
+  ENEMY_REPATH_TIME,
   ENEMY_RESPAWN_DELAY,
+  ENEMY_SEPARATION,
+  ENEMY_SEPARATION_FORCE,
+  ENEMY_SIGHT_LOSE,
+  ENEMY_SIGHT_RANGE,
+  ENEMY_STANDOFF,
+  ENEMY_WAYPOINT_REACHED,
   GAME_HEIGHT,
   GAME_WIDTH,
   HOMING_CHARGE_MAX,
@@ -30,6 +38,8 @@ import {
   SHIP_ROTATION_SPEED,
   SHIP_THRUST,
   SHOOT_INTERVAL,
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
 } from './constants.ts';
 import type { Entity } from './entity.ts';
 import {
@@ -386,16 +396,147 @@ export function enemySystem(dt: number) {
     if (enemy.enemy.respawnTimer > 0) {
       enemy.enemy.respawnTimer -= dt;
       if (enemy.enemy.respawnTimer <= 0 && ship) {
+        // Respawn out near the sight edge, reset to a fresh patrol.
+        const angle = rndRange(0, TAU);
+        const dist = rndRange(180, 260);
+        const nx = ship.transform.position.x + Math.cos(angle) * dist;
+        const ny = ship.transform.position.y + Math.sin(angle) * dist;
+        enemy.transform.position.x = nx;
+        enemy.transform.position.y = ny;
+        // Match previous so interpolation doesn't smear across the teleport.
+        enemy.previous.position.x = nx;
+        enemy.previous.position.y = ny;
+        enemy.previous.rotation = enemy.transform.rotation;
+        enemy.velocity.x = 0;
+        enemy.velocity.y = 0;
         enemy.enemy.respawnTimer = 0;
         enemy.enemy.health = ENEMY_HEALTH;
-        const angle = rndRange(0, TAU);
-        const dist = rndRange(90, 150);
-        enemy.transform.position.x =
-          ship.transform.position.x + Math.cos(angle) * dist;
-        enemy.transform.position.y =
-          ship.transform.position.y + Math.sin(angle) * dist;
+        enemy.enemy.state = 'patrol';
+        enemy.enemy.waypoint.x =
+          nx + rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS);
+        enemy.enemy.waypoint.y =
+          ny + rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS);
+        enemy.enemy.repathTimer = rndRange(1, ENEMY_REPATH_TIME);
       }
     }
+  }
+}
+
+const clampTo = (v: number, max: number) => Math.max(0, Math.min(max, v));
+
+/**
+ * Enemy movement AI. Each live enemy flies with the player's handling (turn the
+ * nose toward a goal, thrust along it, grip drags the slide) minus the boost.
+ * It patrols random waypoints until the player comes within sight, then pursues
+ * to a standoff distance; it drops back to patrol once the player is far again.
+ */
+export function enemyAiSystem(dt: number) {
+  const ship = ships.raw[0];
+  for (const enemy of enemies.raw) {
+    const e = enemy.enemy;
+    if (e.respawnTimer > 0) continue;
+
+    enemy.previous.position.x = enemy.transform.position.x;
+    enemy.previous.position.y = enemy.transform.position.y;
+    enemy.previous.rotation = enemy.transform.rotation;
+
+    // Sight check (hysteresis: spot inside RANGE, lose outside LOSE).
+    let playerDist = Infinity;
+    if (ship) {
+      const px = ship.transform.position.x - enemy.transform.position.x;
+      const py = ship.transform.position.y - enemy.transform.position.y;
+      playerDist = Math.sqrt(px * px + py * py);
+      if (e.state === 'patrol' && playerDist <= ENEMY_SIGHT_RANGE) {
+        e.state = 'engage';
+      } else if (e.state === 'engage' && playerDist > ENEMY_SIGHT_LOSE) {
+        e.state = 'patrol';
+      }
+    } else if (e.state === 'engage') {
+      e.state = 'patrol';
+    }
+
+    // Pick a goal point and whether to thrust toward it.
+    let goalX: number;
+    let goalY: number;
+    let wantThrust: boolean;
+    if (e.state === 'engage' && ship) {
+      goalX = ship.transform.position.x;
+      goalY = ship.transform.position.y;
+      wantThrust = playerDist > ENEMY_STANDOFF; // hold a standoff, don't ram
+    } else {
+      e.repathTimer -= dt;
+      const wdx = e.waypoint.x - enemy.transform.position.x;
+      const wdy = e.waypoint.y - enemy.transform.position.y;
+      if (
+        wdx * wdx + wdy * wdy <=
+          ENEMY_WAYPOINT_REACHED * ENEMY_WAYPOINT_REACHED ||
+        e.repathTimer <= 0
+      ) {
+        e.waypoint.x = clampTo(
+          enemy.transform.position.x +
+            rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS),
+          WORLD_WIDTH,
+        );
+        e.waypoint.y = clampTo(
+          enemy.transform.position.y +
+            rndRange(-ENEMY_PATROL_RADIUS, ENEMY_PATROL_RADIUS),
+          WORLD_HEIGHT,
+        );
+        e.repathTimer = ENEMY_REPATH_TIME;
+      }
+      goalX = e.waypoint.x;
+      goalY = e.waypoint.y;
+      wantThrust = true;
+    }
+
+    // Turn the nose toward the goal, short way, capped at the turn rate.
+    const ddx = goalX - enemy.transform.position.x;
+    const ddy = goalY - enemy.transform.position.y;
+    const targetDeg = Math.atan2(ddx, -ddy) / DEG_TO_RAD;
+    let diff = targetDeg - enemy.transform.rotation;
+    diff = (((diff + 180) % 360) + 360) % 360 - 180;
+    const maxTurn = SHIP_ROTATION_SPEED * dt;
+    enemy.transform.rotation += Math.max(-maxTurn, Math.min(maxTurn, diff));
+
+    const rad = enemy.transform.rotation * DEG_TO_RAD;
+    const hx = Math.sin(rad);
+    const hy = -Math.cos(rad);
+
+    // Thrust only once roughly aimed, so it arcs onto its heading like a ship
+    // banking around rather than powering off sideways.
+    if (wantThrust && Math.abs(diff) < 70) {
+      enemy.velocity.x += hx * SHIP_THRUST * dt;
+      enemy.velocity.y += hy * SHIP_THRUST * dt;
+    }
+
+    // Grip: forward/lateral split dragged separately (same as the ship).
+    const perpX = -hy;
+    const perpY = hx;
+    const fwd = enemy.velocity.x * hx + enemy.velocity.y * hy;
+    const lat = enemy.velocity.x * perpX + enemy.velocity.y * perpY;
+    const newFwd = fwd * Math.max(0, 1 - SHIP_FORWARD_DRAG * dt);
+    const newLat = lat * Math.max(0, 1 - SHIP_LATERAL_DRAG * dt);
+    enemy.velocity.x = hx * newFwd + perpX * newLat;
+    enemy.velocity.y = hy * newFwd + perpY * newLat;
+
+    // Separation: push apart from other live enemies so they swarm rather than
+    // stack on the same point. Applied after grip so it isn't over-damped.
+    for (const other of enemies.raw) {
+      if (other === enemy || other.enemy.respawnTimer > 0) continue;
+      const sx = enemy.transform.position.x - other.transform.position.x;
+      const sy = enemy.transform.position.y - other.transform.position.y;
+      const d2 = sx * sx + sy * sy;
+      if (d2 > 0 && d2 < ENEMY_SEPARATION * ENEMY_SEPARATION) {
+        const d = Math.sqrt(d2);
+        const push = ((ENEMY_SEPARATION - d) / ENEMY_SEPARATION) *
+          ENEMY_SEPARATION_FORCE * dt;
+        enemy.velocity.x += (sx / d) * push;
+        enemy.velocity.y += (sy / d) * push;
+      }
+    }
+
+    enemy.transform.position.x += enemy.velocity.x * dt;
+    enemy.transform.position.y += enemy.velocity.y * dt;
   }
 }
 

@@ -13,6 +13,7 @@ import {
 import shmupUrl from '../assets/shmup.png';
 import {
   BOOST_FUEL_MAX,
+  ENEMY_COUNT,
   FIXED_DT,
   HOMING_CHARGE_MAX,
   MAX_FRAME_TIME,
@@ -30,6 +31,7 @@ import { initQueries } from './queries.ts';
 import { initRender, renderFrame } from './render.ts';
 import {
   bulletSystem,
+  enemyAiSystem,
   enemySystem,
   getHomingCharge,
   getShip,
@@ -74,7 +76,16 @@ async function main() {
 
   const world = new World<Entity>();
   createShip(world, WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
-  createEnemy(world, WORLD_WIDTH / 2 + 70, WORLD_HEIGHT / 2 - 45);
+  // A handful of enemies ringed loosely around the spawn to patrol/engage.
+  for (let i = 0; i < ENEMY_COUNT; i++) {
+    const angle = (i / ENEMY_COUNT) * Math.PI * 2;
+    const dist = 150 + i * 40;
+    createEnemy(
+      world,
+      WORLD_WIDTH / 2 + Math.cos(angle) * dist,
+      WORLD_HEIGHT / 2 + Math.sin(angle) * dist,
+    );
+  }
   populateWorld(world);
   initQueries(world);
 
@@ -181,6 +192,7 @@ async function main() {
       shootSystem(FIXED_DT);
       homingSystem(FIXED_DT);
       bulletSystem(FIXED_DT);
+      enemyAiSystem(FIXED_DT);
       enemySystem(FIXED_DT);
       particleSystem(FIXED_DT);
       accumulator -= FIXED_DT;

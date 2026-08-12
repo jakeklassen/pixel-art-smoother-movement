@@ -16,7 +16,10 @@ export type BulletEntity = SafeEntity<
   Entity,
   'transform' | 'previous' | 'velocity' | 'bullet'
 >;
-export type EnemyEntity = SafeEntity<Entity, 'transform' | 'enemy'>;
+export type EnemyEntity = SafeEntity<
+  Entity,
+  'transform' | 'previous' | 'velocity' | 'enemy'
+>;
 
 // Live archetype queries, created once and shared (ESM live bindings) between
 // the sim and render modules.
@@ -37,5 +40,5 @@ export function initQueries(w: World<Entity>) {
   pulses = w.archetype('pulse').entities;
   particles = w.archetype('transform', 'velocity', 'particle').entities;
   bullets = w.archetype('transform', 'previous', 'velocity', 'bullet').entities;
-  enemies = w.archetype('transform', 'enemy').entities;
+  enemies = w.archetype('transform', 'previous', 'velocity', 'enemy').entities;
 }

@@ -29,6 +29,14 @@ export type Entity = {
   bullet?: { age: number; maxAge: number };
   /** Makes a bullet steer toward `target` at up to `turnRate` deg/s. */
   homing?: { turnRate: number; target: Entity };
-  /** A target dummy. `hitFlash`/`respawnTimer` drive feedback and respawn. */
-  enemy?: { health: number; hitFlash: number; respawnTimer: number };
+  /** A patrolling/pursuing foe. `hitFlash`/`respawnTimer` drive feedback and
+   *  respawn; `state`/`waypoint`/`repathTimer` drive its AI. */
+  enemy?: {
+    health: number;
+    hitFlash: number;
+    respawnTimer: number;
+    state: 'patrol' | 'engage';
+    waypoint: Vec2;
+    repathTimer: number;
+  };
 };

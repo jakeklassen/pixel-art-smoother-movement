@@ -1,8 +1,14 @@
-// 16:9 low-res viewport, upscaled ×SCALE (256×144 → 1280×720). Same zoom as
-// before, just a larger play area.
-export const GAME_WIDTH = 256;
-export const GAME_HEIGHT = 144;
-export const SCALE = 5;
+// 16:9 low-res viewport, upscaled ×SCALE. SCALE must stay an integer so the
+// pixel art never shimmers (the canvas is shown 1:1, so WINDOW need not be
+// exactly 1280 wide). Zoom is set purely by SCALE — pick a row and copy the
+// GAME_WIDTH/HEIGHT/SCALE triple:
+//   256×144 ×5 = 1280×720 — 1.00× (original baseline; felt cramped)
+//   320×180 ×4 = 1280×720 — 1.25× more area   ← current
+//   426×240 ×3 = 1278×720 — 1.67× more area
+//   640×360 ×2 = 1280×720 — 2.50× more area (quite zoomed out)
+export const GAME_WIDTH = 320;
+export const GAME_HEIGHT = 180;
+export const SCALE = 4;
 
 // The render texture is one pixel larger than the view so the sub-pixel blit
 // offset (up to one low-res pixel) never reveals an uncovered edge.
@@ -87,12 +93,24 @@ export const HOMING_SPREAD_DEG = 82; // wide initial fan-out across the volley
 export const HOMING_STAGGER = 0.06; // seconds between symmetric pairs (centre-out bloom)
 export const HOMING_LIFETIME = 3.0; // seconds before a homing missile expires
 
-// Dummy enemy: a stationary target that takes ENEMY_HEALTH hits, then bursts
-// and respawns nearby after a short delay so testing keeps flowing.
+// Enemy: takes ENEMY_HEALTH hits, then bursts and respawns after a short delay.
+export const ENEMY_COUNT = 3;
 export const ENEMY_HEALTH = 3;
 export const ENEMY_RADIUS = 5; // px, hit-test radius
 export const ENEMY_HIT_FLASH = 0.08; // seconds of hit flash
 export const ENEMY_RESPAWN_DELAY = 1.2; // seconds dead before respawn
+
+// Enemy AI. Enemies fly with the player's handling minus the boost: they patrol
+// random waypoints, and pursue once the player is within sight (with hysteresis
+// so they don't flip-flop at the edge). Movement reuses the SHIP_* handling.
+export const ENEMY_SIGHT_RANGE = 200; // px to spot the player → engage
+export const ENEMY_SIGHT_LOSE = 280; // px to lose the player → back to patrol
+export const ENEMY_STANDOFF = 44; // px: stop closing once this near in engage
+export const ENEMY_PATROL_RADIUS = 200; // px spread of the next patrol waypoint
+export const ENEMY_WAYPOINT_REACHED = 22; // px to count a waypoint as reached
+export const ENEMY_REPATH_TIME = 4; // seconds before repicking a waypoint anyway
+export const ENEMY_SEPARATION = 26; // px spacing enemies try to keep from each other
+export const ENEMY_SEPARATION_FORCE = 480; // px/s² push apart when closer than that
 
 export const PLANET_COUNT = 7;
 

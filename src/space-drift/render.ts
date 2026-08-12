@@ -307,15 +307,23 @@ function drawEntities(
 
   for (const enemy of enemies.raw) {
     if (enemy.enemy.respawnTimer > 0) continue;
+    let ex = enemy.transform.position.x;
+    let ey = enemy.transform.position.y;
+    let er = enemy.transform.rotation;
+    if (interpolate) {
+      ex = lerp(enemy.previous.position.x, ex, alpha);
+      ey = lerp(enemy.previous.position.y, ey, alpha);
+      er = lerp(enemy.previous.rotation, er, alpha);
+    }
     const sprite = poolSprite(s, i++);
     sprite.texture = s.enemyTexture;
     sprite.tint = 0xffffff;
-    sprite.rotation = 0;
+    sprite.rotation = er * DEG_TO_RAD; // face its heading, like the ship
     // Hit flash reads as a quick scale pop (tint can't brighten a sprite).
     sprite.scale.set(enemy.enemy.hitFlash > 0 ? 1.4 : 1);
     sprite.position.set(
-      Math.floor(enemy.transform.position.x) - flooredCamX,
-      Math.floor(enemy.transform.position.y) - flooredCamY,
+      Math.floor(ex) - flooredCamX,
+      Math.floor(ey) - flooredCamY,
     );
   }
 

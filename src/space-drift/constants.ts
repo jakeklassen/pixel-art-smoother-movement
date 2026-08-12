@@ -75,11 +75,17 @@ export const MUZZLE_OFFSET = 5; // px ahead of the ship centre to spawn bullets
 //   >=1s -> 3, >=2s -> 5, >=3s -> 8. Release fires a staggered, homing spread.
 export const HOMING_CHARGE_MAX = 3; // seconds to full charge
 export const HOMING_LOCK_MARGIN = 6; // px past the view edge still counts as on-screen
-export const HOMING_SPEED = 300; // px/s baseline (added to the ship velocity)
-export const HOMING_TURN_RATE = 380; // deg/s the missiles can steer to track
-export const HOMING_SPREAD_DEG = 30; // initial fan-out across the volley
-export const HOMING_STAGGER = 0.06; // seconds between launches in a volley
-export const HOMING_LIFETIME = 2.4; // seconds before a homing missile expires
+export const HOMING_SPEED = 250; // px/s constant cruise speed
+export const HOMING_TURN_RATE = 540; // deg/s base steering
+// Steering tightens as the missile closes so it can't just orbit the target:
+// within HOMING_CLOSE_DIST the turn rate scales up to (1 + BOOST)x.
+export const HOMING_CLOSE_DIST = 80; // px range where the turn rate ramps up
+export const HOMING_TURN_CLOSE_BOOST = 6; // extra turn-rate multiplier at point blank
+export const HOMING_SEEK_DELAY = 0.13; // seconds flown straight before homing kicks in
+export const HOMING_PROXIMITY = 3; // px bonus hit radius for homing missiles
+export const HOMING_SPREAD_DEG = 82; // wide initial fan-out across the volley
+export const HOMING_STAGGER = 0.085; // seconds between launches in a volley
+export const HOMING_LIFETIME = 3.0; // seconds before a homing missile expires
 
 // Dummy enemy: a stationary target that takes ENEMY_HEALTH hits, then bursts
 // and respawns nearby after a short delay so testing keeps flowing.

@@ -361,9 +361,10 @@ function drawReticle(
   reticleAnim += dt;
   const cx = Math.floor(target.transform.position.x) - flooredCamX;
   const cy = Math.floor(target.transform.position.y) - flooredCamY;
-  const { count, charging } = getHomingCharge();
+  const { charging } = getHomingCharge();
 
   // Brackets breathe by a pixel and glow orange while charging, red when idle.
+  // (Charge level is shown on the HUD meter, not here.)
   const half = 6 + (Math.sin(reticleAnim * 7) > 0.4 ? 1 : 0);
   const arm = 2;
   const color = charging ? toHex(Pico8.orange) : toHex(Pico8.red);
@@ -375,15 +376,6 @@ function drawReticle(
   corner(cx + half, cy - half, 1, -1);
   corner(cx - half, cy + half, -1, 1);
   corner(cx + half, cy + half, 1, 1);
-
-  // Charge pips above the target: 0 → 3 → 5 → 8 as the hold crosses thresholds.
-  if (count > 0) {
-    const startX = cx - (count - 1); // pips are 2px apart, centred
-    const py = cy - half - 3;
-    for (let i = 0; i < count; i++) {
-      g.rect(startX + i * 2, py, 1, 1).fill(toHex(Pico8.yellow));
-    }
-  }
 }
 
 function drawStars(

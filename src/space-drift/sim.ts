@@ -13,10 +13,14 @@ import {
   GAME_HEIGHT,
   GAME_WIDTH,
   HOMING_CHARGE_MAX,
+  HOMING_CLOSE_DIST,
   HOMING_LOCK_MARGIN,
+  HOMING_PROXIMITY,
+  HOMING_SEEK_DELAY,
   HOMING_SPEED,
   HOMING_SPREAD_DEG,
   HOMING_STAGGER,
+  HOMING_TURN_CLOSE_BOOST,
   MUZZLE_OFFSET,
   SHIP_BOOST_THRUST,
   SHIP_BRAKE,
@@ -277,20 +281,27 @@ export function bulletSystem(dt: number) {
       continue;
     }
 
-    // Homing: steer the velocity vector toward the target, capped at turnRate,
-    // preserving speed. If the target has died/respawned, fly straight.
+    // Homing: after a brief straight "launch" phase (so the volley fans out
+    // first), steer the velocity toward the target — with the turn rate ramping
+    // up as it closes, so it tightens onto the target instead of orbiting it.
     const homing = bullet.homing;
     if (
       homing &&
+      bullet.bullet.age >= HOMING_SEEK_DELAY &&
       homing.target.transform &&
       (!homing.target.enemy || homing.target.enemy.respawnTimer <= 0)
     ) {
       const dx = homing.target.transform.position.x - bullet.transform.position.x;
       const dy = homing.target.transform.position.y - bullet.transform.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const closeBoost =
+        1 +
+        HOMING_TURN_CLOSE_BOOST *
+          Math.max(0, (HOMING_CLOSE_DIST - dist) / HOMING_CLOSE_DIST);
       const cur = Math.atan2(bullet.velocity.y, bullet.velocity.x);
       let diff = Math.atan2(dy, dx) - cur;
       diff = Math.atan2(Math.sin(diff), Math.cos(diff)); // wrap to [-π, π]
-      const maxStep = homing.turnRate * DEG_TO_RAD * dt;
+      const maxStep = homing.turnRate * closeBoost * DEG_TO_RAD * dt;
       const next = cur + Math.max(-maxStep, Math.min(maxStep, diff));
       const speed = Math.sqrt(
         bullet.velocity.x * bullet.velocity.x +
@@ -310,7 +321,9 @@ export function bulletSystem(dt: number) {
       if (enemy.enemy.respawnTimer > 0) continue;
       const dx = enemy.transform.position.x - bullet.transform.position.x;
       const dy = enemy.transform.position.y - bullet.transform.position.y;
-      const hitR = ENEMY_RADIUS + BULLET_RADIUS;
+      // Homing missiles get a small proximity fuse so a tight pass still lands.
+      const hitR =
+        ENEMY_RADIUS + BULLET_RADIUS + (bullet.homing ? HOMING_PROXIMITY : 0);
       if (dx * dx + dy * dy <= hitR * hitR) {
         hitEnemy(enemy, bullet.transform.position.x, bullet.transform.position.y);
         dead.push(bullet);
@@ -493,9 +506,10 @@ function launchHomingMissile(
     ship.transform.position.x + hx * MUZZLE_OFFSET,
     ship.transform.position.y + hy * MUZZLE_OFFSET,
     ship.transform.rotation + spread,
-    // Inherit ship velocity (steering rotates this vector, so it never trails).
-    ship.velocity.x + hx * HOMING_SPEED,
-    ship.velocity.y + hy * HOMING_SPEED,
+    // Constant cruise speed (not ship-relative) keeps the turn radius — and so
+    // the seeking behaviour — predictable regardless of how fast the ship moves.
+    hx * HOMING_SPEED,
+    hy * HOMING_SPEED,
     target,
   );
 }

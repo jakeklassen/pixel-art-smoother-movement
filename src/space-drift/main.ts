@@ -14,6 +14,7 @@ import shmupUrl from '../assets/shmup.png';
 import {
   BOOST_FUEL_MAX,
   FIXED_DT,
+  HOMING_CHARGE_MAX,
   MAX_FRAME_TIME,
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
@@ -30,6 +31,7 @@ import { initRender, renderFrame } from './render.ts';
 import {
   bulletSystem,
   enemySystem,
+  getHomingCharge,
   getShip,
   homingSystem,
   particleSystem,
@@ -100,15 +102,36 @@ async function main() {
   const fpsText = mkText(4);
   const spdText = mkText(22);
 
-  // Boost fuel meter: a labelled bar that drains on boost and refills otherwise.
-  const fuelLabel = new Text({
-    text: 'boost',
-    style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff },
+  const mkLabel = (text: string, y: number) => {
+    const t = new Text({
+      text,
+      style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffffff },
+    });
+    t.position.set(6, y);
+    hud.addChild(t);
+    return t;
+  };
+
+  // Homing charge meter: fills over HOMING_CHARGE_MAX with ticks at the tier
+  // boundaries, and a "xN" count of the volley the current charge would fire.
+  mkLabel('charge', 42);
+  const CHARGE_BAR_X = 52;
+  const CHARGE_BAR_Y = 44;
+  const CHARGE_BAR_W = 120;
+  const CHARGE_BAR_H = 6;
+  const chargeBar = new Graphics();
+  hud.addChild(chargeBar);
+  const chargeCountText = new Text({
+    text: '',
+    style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffec27 },
   });
-  fuelLabel.position.set(6, 42);
-  hud.addChild(fuelLabel);
+  chargeCountText.position.set(CHARGE_BAR_X + CHARGE_BAR_W + 8, 42);
+  hud.addChild(chargeCountText);
+
+  // Boost fuel meter: a labelled bar that drains on boost and refills otherwise.
+  mkLabel('boost', 58);
   const FUEL_BAR_X = 52;
-  const FUEL_BAR_Y = 44;
+  const FUEL_BAR_Y = 60;
   const FUEL_BAR_W = 120;
   const FUEL_BAR_H = 10;
   const fuelBar = new Graphics();
@@ -210,6 +233,43 @@ async function main() {
     );
     fpsText.text = `fps ${Math.round(ticker.FPS)}`;
     spdText.text = `spd ${speed}`;
+
+    // Charge bar: fills over the charge window with ticks at the tier lines, so
+    // you can read the pending volley size (xN) without an enemy on screen.
+    const charge = getHomingCharge();
+    const chargeFrac = Math.min(1, charge.seconds / HOMING_CHARGE_MAX);
+    const chargeColor =
+      charge.count >= 8
+        ? 0xff004d
+        : charge.count >= 5
+          ? 0xffa300
+          : charge.count >= 3
+            ? 0xffec27
+            : 0x5f6773;
+    chargeBar.clear();
+    chargeBar
+      .rect(CHARGE_BAR_X, CHARGE_BAR_Y, CHARGE_BAR_W, CHARGE_BAR_H)
+      .fill({ color: 0x1d2b53, alpha: 0.85 });
+    if (chargeFrac > 0) {
+      chargeBar
+        .rect(
+          CHARGE_BAR_X,
+          CHARGE_BAR_Y,
+          Math.floor(CHARGE_BAR_W * chargeFrac),
+          CHARGE_BAR_H,
+        )
+        .fill(chargeColor);
+    }
+    // Tier ticks at 1s and 2s (thirds of the window).
+    for (const t of [1 / 3, 2 / 3]) {
+      chargeBar
+        .rect(CHARGE_BAR_X + Math.floor(CHARGE_BAR_W * t), CHARGE_BAR_Y - 1, 1, CHARGE_BAR_H + 2)
+        .fill({ color: 0xc2c3c7, alpha: 0.9 });
+    }
+    chargeBar
+      .rect(CHARGE_BAR_X, CHARGE_BAR_Y, CHARGE_BAR_W, CHARGE_BAR_H)
+      .stroke({ width: 1, color: 0xc2c3c7, alpha: 0.8 });
+    chargeCountText.text = charge.count > 0 ? `x${charge.count}` : '';
 
     // Fuel bar: fill scales with the tank; amber while boosting, cyan otherwise,
     // red when nearly empty. Filled width floored to whole pixels to stay crisp.

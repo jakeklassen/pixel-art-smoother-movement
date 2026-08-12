@@ -119,6 +119,8 @@ async function main() {
     setCrt(state.scene, crt);
   });
   onPress('m', () => (minimap = !minimap));
+  // Manual rumble test (independent of boost) to sanity-check the hardware.
+  onPress('v', () => rumble(400, 1, 1));
 
   let accumulator = 0;
   let boostHeldTime = 0;

@@ -35,20 +35,24 @@ const key = {
   z: keyboard.key('Z'),
 };
 
-// Gamepad controls (standard mapping). A / Right Trigger = thrust, B = brake,
-// Y = boost, D-pad + left stick = steer.
+// Gamepad controls (standard mapping). Locomotion lives on the triggers and the
+// left stick so the face buttons stay free for actions (boost=X, shoot=B soon):
+//   forward/gas = stick up  or Right Trigger   (the "W / Up" of the pad)
+//   brake       = stick down or Left Trigger
+//   steer       = stick left/right or D-pad
+//   boost       = X (left face button)
 const pad = {
   dpadLeft: gamepad.button('DpadLeft'),
   dpadRight: gamepad.button('DpadRight'),
-  a: gamepad.button('A'),
   rightTrigger: gamepad.button('RT'),
-  b: gamepad.button('B'),
-  y: gamepad.button('Y'),
+  leftTrigger: gamepad.button('LT'),
+  x: gamepad.button('X'),
   leftStick: gamepad.stick('left'),
 };
 
-const stickX = (): number =>
-  gamepad.isConnected() ? pad.leftStick.query().x : 0;
+// Left-stick vector (up is -y in the standard mapping). Zeroed when no pad.
+const stick = (): { x: number; y: number } =>
+  gamepad.isConnected() ? pad.leftStick.query() : { x: 0, y: 0 };
 
 /** High-level game actions, true while active on either device. */
 export const actions = {
@@ -56,35 +60,60 @@ export const actions = {
     key.left.query() ||
     key.a.query() ||
     pad.dpadLeft.query() ||
-    stickX() < -STICK_DEADZONE,
+    stick().x < -STICK_DEADZONE,
   rotateRight: (): boolean =>
     key.right.query() ||
     key.d.query() ||
     pad.dpadRight.query() ||
-    stickX() > STICK_DEADZONE,
+    stick().x > STICK_DEADZONE,
   thrust: (): boolean =>
-    key.up.query() || key.w.query() || pad.a.query() || pad.rightTrigger.query(),
-  brake: (): boolean => key.down.query() || key.s.query() || pad.b.query(),
-  boost: (): boolean => key.z.query() || pad.y.query(),
+    key.up.query() ||
+    key.w.query() ||
+    pad.rightTrigger.query() ||
+    stick().y < -STICK_DEADZONE,
+  brake: (): boolean =>
+    key.down.query() ||
+    key.s.query() ||
+    pad.leftTrigger.query() ||
+    stick().y > STICK_DEADZONE,
+  boost: (): boolean => key.z.query() || pad.x.query(),
 };
 
 /** True once a gamepad is connected (for HUD hints). */
 export const gamepadConnected = (): boolean => gamepad.isConnected();
 
+type RumbleActuator = {
+  playEffect?: (
+    type: string,
+    params: {
+      duration: number;
+      strongMagnitude: number;
+      weakMagnitude: number;
+    },
+  ) => Promise<unknown>;
+};
+
 /**
- * Rumble the pad for `durationMs`. No-ops when no pad is connected or the pad
- * lacks a dual-rumble actuator (many do), so it's always safe to call.
- * `strong` drives the low-frequency (heavy) motor, `weak` the high-frequency.
+ * Rumble every connected pad that exposes a dual-rumble actuator. This reads
+ * navigator.getGamepads() directly rather than going through contro, so it
+ * fires even when the last input came from the keyboard (contro only counts a
+ * pad as "connected" once it has sent input, which would otherwise gate this).
+ * Safe no-op on pads without a haptic actuator.
  */
-export const rumble = (
-  durationMs: number,
-  strong = 1,
-  weak = 0.5,
-): void => {
-  void gamepad.vibrate(durationMs, {
-    strongMagnitude: strong,
-    weakMagnitude: weak,
-  });
+export const rumble = (durationMs: number, strong = 1, weak = 0.5): void => {
+  const pads = navigator.getGamepads?.() ?? [];
+  for (const p of pads) {
+    const actuator = (p as { vibrationActuator?: RumbleActuator } | null)
+      ?.vibrationActuator;
+    if (!actuator?.playEffect) continue;
+    actuator
+      .playEffect('dual-rumble', {
+        duration: durationMs,
+        strongMagnitude: strong,
+        weakMagnitude: weak,
+      })
+      .catch(() => {});
+  }
 };
 
 /** Register a one-shot handler for a key press (debug toggles, keyboard-only). */

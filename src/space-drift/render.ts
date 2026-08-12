@@ -478,6 +478,20 @@ function drawMinimap(
     }
   }
 
+  // Enemies: a red blip each (radar contact), clamped to the rim if off-disc.
+  for (const enemy of enemies.raw) {
+    if (enemy.enemy.respawnTimer > 0) continue;
+    let dx = (enemy.transform.position.x - shipX) * zoom;
+    let dy = (enemy.transform.position.y - shipY) * zoom;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const max = r - 1;
+    if (dist > max) {
+      dx = (dx / dist) * max;
+      dy = (dy / dist) * max;
+    }
+    g.rect(Math.floor(r + dx), Math.floor(r + dy), 1, 1).fill(toHex(Pico8.red));
+  }
+
   // The ship: the only white pixel on the map.
   g.rect(r, r, 1, 1).fill(toHex(Pico8.white));
 

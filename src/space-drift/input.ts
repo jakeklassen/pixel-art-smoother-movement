@@ -47,8 +47,8 @@ const pad = {
   dpadRight: gamepad.button('DpadRight'),
   rightTrigger: gamepad.button('RT'),
   leftTrigger: gamepad.button('LT'),
-  x: gamepad.button('X'),
-  b: gamepad.button('B'),
+  x: gamepad.button('X'), // left face button
+  a: gamepad.button('A'), // bottom face button
   leftStick: gamepad.stick('left'),
 };
 
@@ -90,7 +90,7 @@ export const actions = {
   brake: (): boolean =>
     key.down.query() || key.s.query() || pad.leftTrigger.query(),
   boost: (): boolean => key.z.query() || pad.x.query(),
-  shoot: (): boolean => key.space.query() || pad.b.query(),
+  shoot: (): boolean => key.space.query() || pad.a.query(),
   /** Target heading in degrees from the left stick, or null when centred. */
   steerHeading,
 };

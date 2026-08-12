@@ -37,20 +37,23 @@ const key = {
   x: keyboard.key('X'),
 };
 
-// Gamepad controls (standard mapping). Locomotion lives on the triggers and the
-// left stick so the face buttons stay free for actions (boost=X, shoot=B soon):
-//   forward/gas = stick (any direction) or Right Trigger   (the "W / Up" of the pad)
-//   brake       = Left Trigger
-//   steer       = stick left/right or D-pad
-//   boost       = X (left face button)
+// Gamepad controls (standard mapping). Locomotion lives on the triggers/stick
+// and boost on a shoulder, so the face buttons are free to fire and charge at
+// the same time as boosting:
+//   forward/gas   = stick (any direction) or Right Trigger
+//   brake         = Left Trigger
+//   steer         = stick left/right or D-pad
+//   boost         = Right Bumper
+//   shoot         = A (bottom face button)
+//   homing charge = B (right face button)
 const pad = {
   dpadLeft: gamepad.button('DpadLeft'),
   dpadRight: gamepad.button('DpadRight'),
   rightTrigger: gamepad.button('RT'),
   leftTrigger: gamepad.button('LT'),
-  x: gamepad.button('X'), // left face button
-  a: gamepad.button('A'), // bottom face button
-  b: gamepad.button('B'), // right face button
+  rightBumper: gamepad.button('RB'), // boost
+  a: gamepad.button('A'), // bottom face button — shoot
+  b: gamepad.button('B'), // right face button — homing charge
   leftStick: gamepad.stick('left'),
 };
 
@@ -91,7 +94,7 @@ export const actions = {
     stickPushed(stick()),
   brake: (): boolean =>
     key.down.query() || key.s.query() || pad.leftTrigger.query(),
-  boost: (): boolean => key.z.query() || pad.x.query(),
+  boost: (): boolean => key.z.query() || pad.rightBumper.query(),
   shoot: (): boolean => key.space.query() || pad.a.query(),
   homing: (): boolean => key.x.query() || pad.b.query(),
   /** Target heading in degrees from the left stick, or null when centred. */

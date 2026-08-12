@@ -71,6 +71,22 @@ export const actions = {
 /** True once a gamepad is connected (for HUD hints). */
 export const gamepadConnected = (): boolean => gamepad.isConnected();
 
+/**
+ * Rumble the pad for `durationMs`. No-ops when no pad is connected or the pad
+ * lacks a dual-rumble actuator (many do), so it's always safe to call.
+ * `strong` drives the low-frequency (heavy) motor, `weak` the high-frequency.
+ */
+export const rumble = (
+  durationMs: number,
+  strong = 1,
+  weak = 0.5,
+): void => {
+  void gamepad.vibrate(durationMs, {
+    strongMagnitude: strong,
+    weakMagnitude: weak,
+  });
+};
+
 /** Register a one-shot handler for a key press (debug toggles, keyboard-only). */
 export const onPress = (key: string, handler: () => void): void => {
   window.addEventListener('keydown', (e) => {

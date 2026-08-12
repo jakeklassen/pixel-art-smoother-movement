@@ -23,7 +23,7 @@ import {
 import { initEffects, setCrt, updateEffects } from './effects.ts';
 import type { Entity } from './entity.ts';
 import { createShip, populateWorld } from './factories.ts';
-import { actions, gamepadConnected, onPress } from './input.ts';
+import { actions, gamepadConnected, onPress, rumble } from './input.ts';
 import { SPACE_COLOR, toHex } from './palette.ts';
 import { initQueries } from './queries.ts';
 import { initRender, renderFrame } from './render.ts';
@@ -122,6 +122,11 @@ async function main() {
 
   let accumulator = 0;
   let boostHeldTime = 0;
+  // Rumble state: a punchy kick on the boost edge, then a sustained buzz that
+  // we re-issue every RUMBLE_REFRESH so it doesn't lapse mid-boost.
+  let wasBoosting = false;
+  let rumbleTimer = 0;
+  const RUMBLE_REFRESH = 0.15; // seconds between sustain pulses
 
   app.ticker.add((ticker: Ticker) => {
     const dt = Math.min(ticker.deltaMS / 1000, MAX_FRAME_TIME);
@@ -139,7 +144,27 @@ async function main() {
     const ship = getShip();
 
     // Shake ramps only while actually boosting (Z held AND fuel remaining).
-    boostHeldTime = ship.ship.boosting ? boostHeldTime + dt : 0;
+    const boosting = ship.ship.boosting;
+    boostHeldTime = boosting ? boostHeldTime + dt : 0;
+
+    // Controller rumble: hard kick on the boost edge, then a lighter sustained
+    // buzz re-issued periodically. A short empty-tank blip when boost cuts out.
+    if (boosting) {
+      if (!wasBoosting) {
+        rumble(180, 1, 0.7); // kick
+        rumbleTimer = RUMBLE_REFRESH;
+      } else {
+        rumbleTimer -= dt;
+        if (rumbleTimer <= 0) {
+          rumble(RUMBLE_REFRESH * 1000 + 40, 0.5, 0.35); // sustain
+          rumbleTimer = RUMBLE_REFRESH;
+        }
+      }
+    } else if (wasBoosting) {
+      if (ship.ship.fuel <= 0) rumble(120, 0.2, 0.6); // ran dry
+      rumbleTimer = 0;
+    }
+    wasBoosting = boosting;
 
     const alpha = interpolation ? accumulator / FIXED_DT : 1;
     renderFrame(

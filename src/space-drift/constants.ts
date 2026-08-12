@@ -70,11 +70,11 @@ export const BULLET_RADIUS = 2; // px, for hit tests
 export const SHOOT_INTERVAL = 0.13; // seconds between shots while held
 export const MUZZLE_OFFSET = 5; // px ahead of the ship centre to spawn bullets
 
-// Homing charge shot (hold the right face button / X key). A lock-on picks any
-// enemy inside a facing cone; the longer you hold, the bigger the volley:
+// Homing charge shot (hold the right face button / X key). The lock-on picks
+// the nearest on-screen enemy; the longer you hold, the bigger the volley:
 //   >=1s -> 3, >=2s -> 5, >=3s -> 8. Release fires a staggered, homing spread.
 export const HOMING_CHARGE_MAX = 3; // seconds to full charge
-export const HOMING_LOCK_CONE_DEG = 30; // total lock cone width (±15° of nose)
+export const HOMING_LOCK_MARGIN = 6; // px past the view edge still counts as on-screen
 export const HOMING_SPEED = 300; // px/s baseline (added to the ship velocity)
 export const HOMING_TURN_RATE = 380; // deg/s the missiles can steer to track
 export const HOMING_SPREAD_DEG = 30; // initial fan-out across the volley

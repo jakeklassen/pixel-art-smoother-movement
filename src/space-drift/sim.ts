@@ -10,8 +10,10 @@ import {
   ENEMY_HIT_FLASH,
   ENEMY_RADIUS,
   ENEMY_RESPAWN_DELAY,
+  GAME_HEIGHT,
+  GAME_WIDTH,
   HOMING_CHARGE_MAX,
-  HOMING_LOCK_CONE_DEG,
+  HOMING_LOCK_MARGIN,
   HOMING_SPEED,
   HOMING_SPREAD_DEG,
   HOMING_STAGGER,
@@ -403,22 +405,20 @@ function targetIsLive(target: Entity | null): target is Entity {
   );
 }
 
-/** The live enemy most aligned with the nose within the lock cone, else null. */
+/** The nearest live enemy currently on screen, else null. */
 function findLockTarget(ship: ShipEntity): Entity | null {
-  const rad = ship.transform.rotation * DEG_TO_RAD;
-  const hx = Math.sin(rad);
-  const hy = -Math.cos(rad);
+  const halfW = GAME_WIDTH / 2 + HOMING_LOCK_MARGIN;
+  const halfH = GAME_HEIGHT / 2 + HOMING_LOCK_MARGIN;
   let best: Entity | null = null;
-  let bestDot = Math.cos((HOMING_LOCK_CONE_DEG / 2) * DEG_TO_RAD);
+  let bestDistSq = Infinity;
   for (const enemy of enemies.raw) {
     if (enemy.enemy.respawnTimer > 0) continue;
     const dx = enemy.transform.position.x - ship.transform.position.x;
     const dy = enemy.transform.position.y - ship.transform.position.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len < 0.001) continue;
-    const dot = (hx * dx + hy * dy) / len;
-    if (dot >= bestDot) {
-      bestDot = dot;
+    if (Math.abs(dx) > halfW || Math.abs(dy) > halfH) continue; // off-screen
+    const distSq = dx * dx + dy * dy;
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq;
       best = enemy;
     }
   }

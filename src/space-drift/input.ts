@@ -54,32 +54,42 @@ const pad = {
 const stick = (): { x: number; y: number } =>
   gamepad.isConnected() ? pad.leftStick.query() : { x: 0, y: 0 };
 
-// Any stick deflection past the deadzone counts as "gas". The ship thrusts
-// along its nose, not toward the stick, so pushing the stick in ANY direction
-// means forward: a hard left/right turn keeps the throttle open instead of
-// cutting out, and pulling down never becomes an accidental reverse.
-const stickGas = (): boolean => {
+// True when the stick is pushed past the deadzone in any direction. Doubles as
+// "gas": the ship thrusts along its nose (not toward the stick), so any push
+// means forward — hard turns keep the throttle open, and there's no reverse.
+const stickPushed = (s: { x: number; y: number }): boolean =>
+  s.x * s.x + s.y * s.y > STICK_DEADZONE * STICK_DEADZONE;
+
+/**
+ * Absolute stick steering: the stick's angle is a target heading in world space
+ * (stick up = north = the ship's rotation 0°, clockwise-positive to match the
+ * heading vector sin θ / -cos θ). Returns degrees, or null when the stick is
+ * inside the deadzone (or no pad) so the digital rotate keys/D-pad apply. Using
+ * the full angle — not just the X axis — lets you sweep the stick all the way
+ * around without the turn flipping direction at the bottom of the circle.
+ */
+const steerHeading = (): number | null => {
   const s = stick();
-  return s.x * s.x + s.y * s.y > STICK_DEADZONE * STICK_DEADZONE;
+  if (!stickPushed(s)) return null;
+  return (Math.atan2(s.x, -s.y) * 180) / Math.PI;
 };
 
 /** High-level game actions, true while active on either device. */
 export const actions = {
   rotateLeft: (): boolean =>
-    key.left.query() ||
-    key.a.query() ||
-    pad.dpadLeft.query() ||
-    stick().x < -STICK_DEADZONE,
+    key.left.query() || key.a.query() || pad.dpadLeft.query(),
   rotateRight: (): boolean =>
-    key.right.query() ||
-    key.d.query() ||
-    pad.dpadRight.query() ||
-    stick().x > STICK_DEADZONE,
+    key.right.query() || key.d.query() || pad.dpadRight.query(),
   thrust: (): boolean =>
-    key.up.query() || key.w.query() || pad.rightTrigger.query() || stickGas(),
+    key.up.query() ||
+    key.w.query() ||
+    pad.rightTrigger.query() ||
+    stickPushed(stick()),
   brake: (): boolean =>
     key.down.query() || key.s.query() || pad.leftTrigger.query(),
   boost: (): boolean => key.z.query() || pad.x.query(),
+  /** Target heading in degrees from the left stick, or null when centred. */
+  steerHeading,
 };
 
 /** True once a gamepad is connected (for HUD hints). */

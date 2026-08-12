@@ -26,6 +26,7 @@ let prevBoost = false;
 export function shipSystem(dt: number) {
   const rotateLeft = actions.rotateLeft();
   const rotateRight = actions.rotateRight();
+  const steerHeading = actions.steerHeading();
   const thrust = actions.thrust();
   const brake = actions.brake();
   const boost = actions.boost();
@@ -37,9 +38,22 @@ export function shipSystem(dt: number) {
 
     const st = ship.ship;
 
-    // A/D (or arrows) turn the nose.
-    if (rotateLeft) ship.transform.rotation -= SHIP_ROTATION_SPEED * dt;
-    if (rotateRight) ship.transform.rotation += SHIP_ROTATION_SPEED * dt;
+    // Steering. The analog stick (steerHeading) sets an absolute target heading
+    // and the nose rotates toward it the short way, capped at the turn rate —
+    // so sweeping the stick around carries the ship the whole way around. Keys
+    // and the D-pad fall back to fixed-rate left/right rotation.
+    const maxTurn = SHIP_ROTATION_SPEED * dt;
+    if (steerHeading !== null) {
+      // Shortest signed angle from current heading to the target, in [-180,180].
+      let diff = steerHeading - ship.transform.rotation;
+      diff = (((diff + 180) % 360) + 360) % 360 - 180;
+      // Add the delta (never snap the absolute value) so interpolation stays
+      // smooth and the step never exceeds the turn rate.
+      ship.transform.rotation += Math.max(-maxTurn, Math.min(maxTurn, diff));
+    } else {
+      if (rotateLeft) ship.transform.rotation -= maxTurn;
+      if (rotateRight) ship.transform.rotation += maxTurn;
+    }
 
     const rad = ship.transform.rotation * DEG_TO_RAD;
     const hx = Math.sin(rad);

@@ -24,7 +24,6 @@ import {
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
 } from './constants.ts';
-import { actions } from './input.ts';
 import { lerp, wrap } from './math.ts';
 import { Pico8, toHex } from './palette.ts';
 import { particles, planets, ships, stars } from './queries.ts';
@@ -460,13 +459,14 @@ export function renderFrame(
 
   s.worldSprite.position.set(blitX, blitY);
   s.shipSprite.rotation = shipRot * DEG_TO_RAD;
-  // Bank sprite follows the steer input, always (keyboard or gamepad).
-  const steeringLeft = actions.rotateLeft();
-  const steeringRight = actions.rotateRight();
+  // Bank sprite follows the actual turn taken this step, so it works the same
+  // for keys, D-pad, and analog stick-aim: rotation increasing = clockwise =
+  // bank right. (Threshold guards against interpolation jitter.)
+  const turnDelta = ship.transform.rotation - ship.previous.rotation;
   s.shipSprite.texture =
-    steeringLeft && !steeringRight
+    turnDelta < -0.05
       ? s.shipTextures.bankLeft
-      : steeringRight && !steeringLeft
+      : turnDelta > 0.05
         ? s.shipTextures.bankRight
         : s.shipTextures.standard;
   updatePlanetLight(s, shipX, shipY, shipRot);

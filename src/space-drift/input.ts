@@ -36,14 +36,14 @@ const key = {
 };
 
 // Gamepad controls (standard mapping). A / Right Trigger = thrust, B = brake,
-// Right Bumper = boost, D-pad + left stick = steer.
+// Y = boost, D-pad + left stick = steer.
 const pad = {
   dpadLeft: gamepad.button('DpadLeft'),
   dpadRight: gamepad.button('DpadRight'),
   a: gamepad.button('A'),
   rightTrigger: gamepad.button('RT'),
   b: gamepad.button('B'),
-  rightBumper: gamepad.button('RB'),
+  y: gamepad.button('Y'),
   leftStick: gamepad.stick('left'),
 };
 
@@ -65,7 +65,7 @@ export const actions = {
   thrust: (): boolean =>
     key.up.query() || key.w.query() || pad.a.query() || pad.rightTrigger.query(),
   brake: (): boolean => key.down.query() || key.s.query() || pad.b.query(),
-  boost: (): boolean => key.z.query() || pad.rightBumper.query(),
+  boost: (): boolean => key.z.query() || pad.y.query(),
 };
 
 /** True once a gamepad is connected (for HUD hints). */

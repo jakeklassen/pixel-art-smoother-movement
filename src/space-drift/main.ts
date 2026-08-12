@@ -122,11 +122,14 @@ async function main() {
 
   let accumulator = 0;
   let boostHeldTime = 0;
-  // Rumble state: a punchy kick on the boost edge, then a sustained buzz that
-  // we re-issue every RUMBLE_REFRESH so it doesn't lapse mid-boost.
+  // Rumble state: a punchy kick on the boost edge, then a sustained buzz. Each
+  // sustain pulse is longer than the refresh interval so pulses OVERLAP — the
+  // motor never stops between them, which is what actually reads as continuous
+  // rumble instead of an imperceptible stutter.
   let wasBoosting = false;
   let rumbleTimer = 0;
-  const RUMBLE_REFRESH = 0.15; // seconds between sustain pulses
+  const RUMBLE_REFRESH = 0.2; // seconds between sustain pulses
+  const RUMBLE_PULSE_MS = 320; // pulse length (> refresh, so they overlap)
 
   app.ticker.add((ticker: Ticker) => {
     const dt = Math.min(ticker.deltaMS / 1000, MAX_FRAME_TIME);
@@ -151,17 +154,17 @@ async function main() {
     // buzz re-issued periodically. A short empty-tank blip when boost cuts out.
     if (boosting) {
       if (!wasBoosting) {
-        rumble(180, 1, 0.7); // kick
+        rumble(RUMBLE_PULSE_MS, 1, 1); // kick — both motors, full strength
         rumbleTimer = RUMBLE_REFRESH;
       } else {
         rumbleTimer -= dt;
         if (rumbleTimer <= 0) {
-          rumble(RUMBLE_REFRESH * 1000 + 40, 0.5, 0.35); // sustain
+          rumble(RUMBLE_PULSE_MS, 0.9, 0.6); // sustain — overlaps the previous
           rumbleTimer = RUMBLE_REFRESH;
         }
       }
     } else if (wasBoosting) {
-      if (ship.ship.fuel <= 0) rumble(120, 0.2, 0.6); // ran dry
+      if (ship.ship.fuel <= 0) rumble(140, 0.3, 0.8); // ran dry
       rumbleTimer = 0;
     }
     wasBoosting = boosting;

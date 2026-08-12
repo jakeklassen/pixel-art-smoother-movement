@@ -33,6 +33,7 @@ const key = {
   down: keyboard.key('Down'),
   s: keyboard.key('S'),
   z: keyboard.key('Z'),
+  space: keyboard.key('Space'),
 };
 
 // Gamepad controls (standard mapping). Locomotion lives on the triggers and the
@@ -47,6 +48,7 @@ const pad = {
   rightTrigger: gamepad.button('RT'),
   leftTrigger: gamepad.button('LT'),
   x: gamepad.button('X'),
+  b: gamepad.button('B'),
   leftStick: gamepad.stick('left'),
 };
 
@@ -88,6 +90,7 @@ export const actions = {
   brake: (): boolean =>
     key.down.query() || key.s.query() || pad.leftTrigger.query(),
   boost: (): boolean => key.z.query() || pad.x.query(),
+  shoot: (): boolean => key.space.query() || pad.b.query(),
   /** Target heading in degrees from the left stick, or null when centred. */
   steerHeading,
 };

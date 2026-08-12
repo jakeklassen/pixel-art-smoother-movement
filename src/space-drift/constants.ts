@@ -61,6 +61,22 @@ export const BOOST_SHAKE_DELAY = 0.25; // seconds into boost before it starts
 export const BOOST_SHAKE_RAMP = 0.12; // ease-in time so it doesn't pop
 export const BOOST_SHAKE_AMP = 1.0; // sustained amplitude, game px
 
+// Shooting. Bullets inherit the ship's velocity so you can never outrun your
+// own fire (BULLET_SPEED is added on top of it, along the nose). A tap fires
+// once; holding streams at SHOOT_INTERVAL.
+export const BULLET_SPEED = 320; // px/s added on top of the ship's velocity
+export const BULLET_LIFETIME = 1.1; // seconds before a bullet expires
+export const BULLET_RADIUS = 2; // px, for hit tests
+export const SHOOT_INTERVAL = 0.13; // seconds between shots while held
+export const MUZZLE_OFFSET = 5; // px ahead of the ship centre to spawn bullets
+
+// Dummy enemy: a stationary target that takes ENEMY_HEALTH hits, then bursts
+// and respawns nearby after a short delay so testing keeps flowing.
+export const ENEMY_HEALTH = 3;
+export const ENEMY_RADIUS = 5; // px, hit-test radius
+export const ENEMY_HIT_FLASH = 0.08; // seconds of hit flash
+export const ENEMY_RESPAWN_DELAY = 1.2; // seconds dead before respawn
+
 export const PLANET_COUNT = 7;
 
 // Shared light direction for all planets (up-and-to-the-left). Pre-normalized.

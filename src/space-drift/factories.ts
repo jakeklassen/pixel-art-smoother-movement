@@ -1,6 +1,8 @@
 import type { World } from 'objecs';
 import {
   BOOST_FUEL_MAX,
+  BULLET_LIFETIME,
+  ENEMY_HEALTH,
   PLANET_COUNT,
   WORLD_HEIGHT,
   WORLD_WIDTH,
@@ -24,6 +26,29 @@ export function createShip(world: World<Entity>, x: number, y: number) {
       boosting: false,
       fuel: BOOST_FUEL_MAX,
     },
+  });
+}
+
+export function createBullet(
+  world: World<Entity>,
+  x: number,
+  y: number,
+  rotation: number,
+  vx: number,
+  vy: number,
+) {
+  return world.createEntity({
+    transform: { position: { x, y }, rotation },
+    previous: { position: { x, y }, rotation },
+    velocity: { x: vx, y: vy },
+    bullet: { age: 0, maxAge: BULLET_LIFETIME },
+  });
+}
+
+export function createEnemy(world: World<Entity>, x: number, y: number) {
+  return world.createEntity({
+    transform: { position: { x, y }, rotation: 0 },
+    enemy: { health: ENEMY_HEALTH, hitFlash: 0, respawnTimer: 0 },
   });
 }
 

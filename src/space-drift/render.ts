@@ -26,7 +26,7 @@ import {
 } from './constants.ts';
 import { lerp, wrap } from './math.ts';
 import { Pico8, toHex } from './palette.ts';
-import { particles, planets, ships, stars } from './queries.ts';
+import { bullets, enemies, particles, planets, ships, stars } from './queries.ts';
 
 const DEG_TO_RAD = Math.PI / 180;
 const STAR_WRAP_W = (GAME_WIDTH + 2) * SCALE;
@@ -74,9 +74,13 @@ export type ShipTextures = {
 export type RenderState = {
   scene: Container; // everything post-processed by CRT/bloom
   shipTextures: ShipTextures;
+  bulletTexture: Texture;
+  enemyTexture: Texture;
   worldRT: RenderTexture;
   worldContainer: Container;
   worldGfx: Graphics;
+  entityLayer: Container; // bullets + enemies, drawn into the world RT
+  spritePool: Sprite[]; // reused sprites for the entity layer
   worldSprite: Sprite;
   starsGfx: Graphics;
   shipSprite: Sprite;
@@ -91,6 +95,8 @@ export type RenderState = {
 export function initRender(
   renderer: Renderer,
   shipTextures: ShipTextures,
+  bulletTexture: Texture,
+  enemyTexture: Texture,
 ): RenderState {
   const shipTexture = shipTextures.standard;
   const scene = new Container();
@@ -108,6 +114,11 @@ export function initRender(
   const worldGfx = new Graphics();
   const worldContainer = new Container();
   worldContainer.addChild(worldGfx);
+  // Bullets + enemies live above the planets/exhaust in the same low-res RT so
+  // they share the pixel grid and camera. Sprites are pooled on demand.
+  const entityLayer = new Container();
+  worldContainer.addChild(entityLayer);
+  const spritePool: Sprite[] = [];
   const worldSprite = new Sprite(worldRT);
   worldSprite.scale.set(SCALE);
   scene.addChild(worldSprite);
@@ -174,9 +185,13 @@ export function initRender(
   return {
     scene,
     shipTextures,
+    bulletTexture,
+    enemyTexture,
     worldRT,
     worldContainer,
     worldGfx,
+    entityLayer,
+    spritePool,
     worldSprite,
     starsGfx,
     shipSprite,
@@ -259,6 +274,67 @@ function drawWorld(
       particle.particle.size,
     ).fill(color);
   }
+}
+
+// Fetch (or lazily create) pooled sprite `i`, made visible for this frame.
+function poolSprite(s: RenderState, i: number): Sprite {
+  let sprite = s.spritePool[i];
+  if (!sprite) {
+    sprite = new Sprite();
+    sprite.anchor.set(0.5);
+    s.entityLayer.addChild(sprite);
+    s.spritePool[i] = sprite;
+  }
+  sprite.visible = true;
+  return sprite;
+}
+
+/** Place bullet + enemy sprites into the low-res world layer (whole pixels). */
+function drawEntities(
+  s: RenderState,
+  flooredCamX: number,
+  flooredCamY: number,
+  interpolate: boolean,
+  alpha: number,
+) {
+  let i = 0;
+
+  for (const enemy of enemies.raw) {
+    if (enemy.enemy.respawnTimer > 0) continue;
+    const sprite = poolSprite(s, i++);
+    sprite.texture = s.enemyTexture;
+    sprite.tint = 0xffffff;
+    sprite.rotation = 0;
+    // Hit flash reads as a quick scale pop (tint can't brighten a sprite).
+    sprite.scale.set(enemy.enemy.hitFlash > 0 ? 1.4 : 1);
+    sprite.position.set(
+      Math.floor(enemy.transform.position.x) - flooredCamX,
+      Math.floor(enemy.transform.position.y) - flooredCamY,
+    );
+  }
+
+  for (const bullet of bullets.raw) {
+    let bx = bullet.transform.position.x;
+    let by = bullet.transform.position.y;
+    let br = bullet.transform.rotation;
+    if (interpolate) {
+      bx = lerp(bullet.previous.position.x, bx, alpha);
+      by = lerp(bullet.previous.position.y, by, alpha);
+      br = lerp(bullet.previous.rotation, br, alpha);
+    }
+    const sprite = poolSprite(s, i++);
+    sprite.texture = s.bulletTexture;
+    sprite.tint = 0xffffff;
+    sprite.scale.set(1);
+    sprite.rotation = br * DEG_TO_RAD;
+    sprite.position.set(
+      Math.floor(bx) - flooredCamX,
+      Math.floor(by) - flooredCamY,
+    );
+  }
+
+  // Hide any sprites left over from a busier frame.
+  for (; i < s.spritePool.length; i++) s.spritePool[i].visible = false;
 }
 
 function drawStars(
@@ -480,6 +556,7 @@ export function renderFrame(
   const viewBottom = flooredCamY + GAME_HEIGHT + 1;
 
   drawWorld(s, flooredCamX, flooredCamY, viewLeft, viewTop, viewRight, viewBottom);
+  drawEntities(s, flooredCamX, flooredCamY, interpolate, alpha);
   renderer.render({ container: s.worldContainer, target: s.worldRT, clear: true });
 
   drawStars(s, camX, camY, subpixel, ship.velocity.x, ship.velocity.y);

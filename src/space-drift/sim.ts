@@ -4,6 +4,13 @@ import {
   BOOST_DRAIN,
   BOOST_FUEL_MAX,
   BOOST_REFILL,
+  BULLET_RADIUS,
+  BULLET_SPEED,
+  ENEMY_HEALTH,
+  ENEMY_HIT_FLASH,
+  ENEMY_RADIUS,
+  ENEMY_RESPAWN_DELAY,
+  MUZZLE_OFFSET,
   SHIP_BOOST_THRUST,
   SHIP_BRAKE,
   SHIP_FORWARD_DRAG,
@@ -11,11 +18,22 @@ import {
   SHIP_MAX_SPEED,
   SHIP_ROTATION_SPEED,
   SHIP_THRUST,
+  SHOOT_INTERVAL,
 } from './constants.ts';
-import { createParticle } from './factories.ts';
+import { createBullet, createParticle } from './factories.ts';
 import { actions } from './input.ts';
-import { rndRange } from './math.ts';
-import { particles, ships, pulses, world, type ShipEntity } from './queries.ts';
+import { rndRange, TAU } from './math.ts';
+import {
+  bullets,
+  enemies,
+  particles,
+  ships,
+  pulses,
+  world,
+  type BulletEntity,
+  type EnemyEntity,
+  type ShipEntity,
+} from './queries.ts';
 
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -201,4 +219,130 @@ export function pulseSystem(dt: number) {
 
 export function getShip(): ShipEntity {
   return ships.raw[0];
+}
+
+// Countdown between shots; reset to 0 on release so the next tap fires at once.
+let shootCooldown = 0;
+
+/** Fire on a tap, and stream at SHOOT_INTERVAL while the shoot button is held. */
+export function shootSystem(dt: number) {
+  shootCooldown -= dt;
+  if (!actions.shoot()) {
+    shootCooldown = 0; // released → next press fires immediately
+    return;
+  }
+  if (shootCooldown > 0) return;
+  shootCooldown = SHOOT_INTERVAL;
+
+  const ship = ships.raw[0];
+  if (!ship) return;
+  const rad = ship.transform.rotation * DEG_TO_RAD;
+  const hx = Math.sin(rad);
+  const hy = -Math.cos(rad);
+  createBullet(
+    world,
+    ship.transform.position.x + hx * MUZZLE_OFFSET,
+    ship.transform.position.y + hy * MUZZLE_OFFSET,
+    ship.transform.rotation,
+    // Inherit the ship's velocity so a boosting player can't outrun the shot.
+    ship.velocity.x + hx * BULLET_SPEED,
+    ship.velocity.y + hy * BULLET_SPEED,
+  );
+}
+
+/** Advance bullets, test them against live enemies, and reap the spent ones. */
+export function bulletSystem(dt: number) {
+  const dead: BulletEntity[] = [];
+
+  for (const bullet of bullets.raw) {
+    bullet.previous.position.x = bullet.transform.position.x;
+    bullet.previous.position.y = bullet.transform.position.y;
+    bullet.previous.rotation = bullet.transform.rotation;
+
+    bullet.bullet.age += dt;
+    if (bullet.bullet.age >= bullet.bullet.maxAge) {
+      dead.push(bullet);
+      continue;
+    }
+    bullet.transform.position.x += bullet.velocity.x * dt;
+    bullet.transform.position.y += bullet.velocity.y * dt;
+
+    for (const enemy of enemies.raw) {
+      if (enemy.enemy.respawnTimer > 0) continue;
+      const dx = enemy.transform.position.x - bullet.transform.position.x;
+      const dy = enemy.transform.position.y - bullet.transform.position.y;
+      const hitR = ENEMY_RADIUS + BULLET_RADIUS;
+      if (dx * dx + dy * dy <= hitR * hitR) {
+        hitEnemy(enemy, bullet.transform.position.x, bullet.transform.position.y);
+        dead.push(bullet);
+        break;
+      }
+    }
+  }
+
+  for (const bullet of dead) world.deleteEntity(bullet);
+}
+
+/** Apply a hit: flash, spark, and on death a burst plus a respawn countdown. */
+function hitEnemy(enemy: EnemyEntity, atX: number, atY: number) {
+  enemy.enemy.health -= 1;
+  enemy.enemy.hitFlash = ENEMY_HIT_FLASH;
+
+  for (let i = 0; i < 6; i++) {
+    const angle = rndRange(0, TAU);
+    const speed = rndRange(20, 70);
+    createParticle(
+      world,
+      atX,
+      atY,
+      Math.cos(angle) * speed,
+      Math.sin(angle) * speed,
+      rndRange(0.1, 0.25),
+      'flame',
+      1,
+    );
+  }
+
+  if (enemy.enemy.health <= 0) {
+    const ex = enemy.transform.position.x;
+    const ey = enemy.transform.position.y;
+    for (let i = 0; i < 24; i++) {
+      const angle = rndRange(0, TAU);
+      const speed = rndRange(30, 120);
+      createParticle(
+        world,
+        ex,
+        ey,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+        rndRange(0.2, 0.5),
+        Math.random() < 0.5 ? 'flame' : 'smoke',
+        1,
+      );
+    }
+    enemy.enemy.respawnTimer = ENEMY_RESPAWN_DELAY;
+  }
+}
+
+/** Decay hit flashes and respawn dead enemies near the ship after the delay. */
+export function enemySystem(dt: number) {
+  const ship = ships.raw[0];
+  for (const enemy of enemies.raw) {
+    if (enemy.enemy.hitFlash > 0) {
+      enemy.enemy.hitFlash = Math.max(0, enemy.enemy.hitFlash - dt);
+    }
+    if (enemy.enemy.respawnTimer > 0) {
+      enemy.enemy.respawnTimer -= dt;
+      if (enemy.enemy.respawnTimer <= 0 && ship) {
+        enemy.enemy.respawnTimer = 0;
+        enemy.enemy.health = ENEMY_HEALTH;
+        const angle = rndRange(0, TAU);
+        const dist = rndRange(90, 150);
+        enemy.transform.position.x =
+          ship.transform.position.x + Math.cos(angle) * dist;
+        enemy.transform.position.y =
+          ship.transform.position.y + Math.sin(angle) * dist;
+      }
+    }
+  }
 }

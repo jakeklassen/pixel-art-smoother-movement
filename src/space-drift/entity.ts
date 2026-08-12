@@ -25,4 +25,8 @@ export type Entity = {
   pulse?: { time: number; speed: number; amplitude: number };
   /** A short-lived exhaust pixel. `kind` selects its color ramp. */
   particle?: { age: number; maxAge: number; kind: string; size: number };
+  /** A player shot: flies along `transform.rotation`, expires after `maxAge`. */
+  bullet?: { age: number; maxAge: number };
+  /** A target dummy. `hitFlash`/`respawnTimer` drive feedback and respawn. */
+  enemy?: { health: number; hitFlash: number; respawnTimer: number };
 };

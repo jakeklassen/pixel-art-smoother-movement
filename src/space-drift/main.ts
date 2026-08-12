@@ -22,16 +22,19 @@ import {
 } from './constants.ts';
 import { initEffects, setCrt, updateEffects } from './effects.ts';
 import type { Entity } from './entity.ts';
-import { createShip, populateWorld } from './factories.ts';
+import { createEnemy, createShip, populateWorld } from './factories.ts';
 import { actions, gamepadConnected, onPress, rumble } from './input.ts';
 import { SPACE_COLOR, toHex } from './palette.ts';
 import { initQueries } from './queries.ts';
 import { initRender, renderFrame } from './render.ts';
 import {
+  bulletSystem,
+  enemySystem,
   getShip,
   particleSystem,
   pulseSystem,
   shipSystem,
+  shootSystem,
 } from './sim.ts';
 
 async function main() {
@@ -51,21 +54,33 @@ async function main() {
 
   const sheet: Texture = await Assets.load(shmupUrl);
   sheet.source.scaleMode = 'nearest';
-  // Top row of the sheet (8x8): frame 1 = bank left, 2 = standard, 3 = bank right.
-  const frame = (x: number) =>
-    new Texture({ source: sheet.source, frame: new Rectangle(x, 0, 8, 8) });
+  // 8x8 tiles addressed by (column, row) from the top-left of the sheet.
+  const frameAt = (col: number, row: number) =>
+    new Texture({
+      source: sheet.source,
+      frame: new Rectangle(col * 8, row * 8, 8, 8),
+    });
+  // Top row: col 1 = bank left, 2 = standard, 3 = bank right.
   const shipTextures = {
-    standard: frame(16),
-    bankLeft: frame(8),
-    bankRight: frame(24),
+    standard: frameAt(2, 0),
+    bankLeft: frameAt(1, 0),
+    bankRight: frameAt(3, 0),
   };
+  const bulletTexture = frameAt(6, 0); // shot: top-row frame 6
+  const enemyTexture = frameAt(11, 8); // dummy enemy: tile (11,8)
 
   const world = new World<Entity>();
   createShip(world, WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+  createEnemy(world, WORLD_WIDTH / 2 + 70, WORLD_HEIGHT / 2 - 45);
   populateWorld(world);
   initQueries(world);
 
-  const state = initRender(app.renderer, shipTextures);
+  const state = initRender(
+    app.renderer,
+    shipTextures,
+    bulletTexture,
+    enemyTexture,
+  );
   initEffects();
   app.stage.addChild(state.scene);
 
@@ -139,6 +154,9 @@ async function main() {
 
     while (accumulator >= FIXED_DT) {
       shipSystem(FIXED_DT);
+      shootSystem(FIXED_DT);
+      bulletSystem(FIXED_DT);
+      enemySystem(FIXED_DT);
       particleSystem(FIXED_DT);
       accumulator -= FIXED_DT;
     }

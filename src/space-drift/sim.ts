@@ -90,7 +90,7 @@ export function shipSystem(dt: number) {
     if (steerHeading !== null) {
       // Shortest signed angle from current heading to the target, in [-180,180].
       let diff = steerHeading - ship.transform.rotation;
-      diff = (((diff + 180) % 360) + 360) % 360 - 180;
+      diff = ((((diff + 180) % 360) + 360) % 360) - 180;
       // Add the delta (never snap the absolute value) so interpolation stays
       // smooth and the step never exceeds the turn rate.
       ship.transform.rotation += Math.max(-maxTurn, Math.min(maxTurn, diff));
@@ -310,8 +310,10 @@ export function bulletSystem(dt: number) {
       homing.target.transform &&
       (!homing.target.enemy || homing.target.enemy.respawnTimer <= 0)
     ) {
-      const dx = homing.target.transform.position.x - bullet.transform.position.x;
-      const dy = homing.target.transform.position.y - bullet.transform.position.y;
+      const dx =
+        homing.target.transform.position.x - bullet.transform.position.x;
+      const dy =
+        homing.target.transform.position.y - bullet.transform.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       const closeBoost =
         1 +
@@ -344,7 +346,11 @@ export function bulletSystem(dt: number) {
       const hitR =
         ENEMY_RADIUS + BULLET_RADIUS + (bullet.homing ? HOMING_PROXIMITY : 0);
       if (dx * dx + dy * dy <= hitR * hitR) {
-        hitEnemy(enemy, bullet.transform.position.x, bullet.transform.position.y);
+        hitEnemy(
+          enemy,
+          bullet.transform.position.x,
+          bullet.transform.position.y,
+        );
         dead.push(bullet);
         break;
       }
@@ -509,7 +515,7 @@ export function enemyAiSystem(dt: number) {
     const ddy = goalY - enemy.transform.position.y;
     const targetDeg = Math.atan2(ddx, -ddy) / DEG_TO_RAD;
     let diff = targetDeg - enemy.transform.rotation;
-    diff = (((diff + 180) % 360) + 360) % 360 - 180;
+    diff = ((((diff + 180) % 360) + 360) % 360) - 180;
     const maxTurn = SHIP_ROTATION_SPEED * dt;
     enemy.transform.rotation += Math.max(-maxTurn, Math.min(maxTurn, diff));
 
@@ -545,8 +551,10 @@ export function enemyAiSystem(dt: number) {
       const d2 = sx * sx + sy * sy;
       if (d2 > 0 && d2 < ENEMY_SEPARATION * ENEMY_SEPARATION) {
         const d = Math.sqrt(d2);
-        const push = ((ENEMY_SEPARATION - d) / ENEMY_SEPARATION) *
-          ENEMY_SEPARATION_FORCE * dt;
+        const push =
+          ((ENEMY_SEPARATION - d) / ENEMY_SEPARATION) *
+          ENEMY_SEPARATION_FORCE *
+          dt;
         enemy.velocity.x += (sx / d) * push;
         enemy.velocity.y += (sy / d) * push;
       }
@@ -647,8 +655,9 @@ export function homingSystem(dt: number) {
       // Fire the mirror partner in the same tick (skips the lone centre).
       if (
         volleyRemaining > 0 &&
-        Math.abs(fanOffsetDeg(volleyTotal - volleyRemaining, volleyTotal) + offset0) <
-          1e-6
+        Math.abs(
+          fanOffsetDeg(volleyTotal - volleyRemaining, volleyTotal) + offset0,
+        ) < 1e-6
       ) {
         launchHomingMissile(ship, volleyTarget, volleyTotal - volleyRemaining);
         volleyRemaining -= 1;
@@ -673,11 +682,7 @@ function fanOffsetDeg(i: number, total: number): number {
   return fracs[i] * HOMING_SPREAD_DEG;
 }
 
-function launchHomingMissile(
-  ship: ShipEntity,
-  target: Entity,
-  index: number,
-) {
+function launchHomingMissile(ship: ShipEntity, target: Entity, index: number) {
   const spread = fanOffsetDeg(index, volleyTotal);
   const angle = (ship.transform.rotation + spread) * DEG_TO_RAD;
   const hx = Math.sin(angle);
@@ -706,5 +711,9 @@ export function getHomingCharge(): {
   seconds: number;
   charging: boolean;
 } {
-  return { count: chargeToCount(homingCharge), seconds: homingCharge, charging: homingHeld };
+  return {
+    count: chargeToCount(homingCharge),
+    seconds: homingCharge,
+    charging: homingHeld,
+  };
 }

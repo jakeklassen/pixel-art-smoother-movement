@@ -26,8 +26,16 @@ import {
 } from './constants.ts';
 import { lerp, wrap } from './math.ts';
 import { Pico8, toHex } from './palette.ts';
-import { bullets, enemies, particles, planets, ships, stars } from './queries.ts';
+import {
+  bullets,
+  enemies,
+  particles,
+  planets,
+  ships,
+  stars,
+} from './queries.ts';
 import { getHomingCharge, getLockTarget } from './sim.ts';
+import { snesMode, textureFor, type RotationSet } from './snes-mode.ts';
 
 const DEG_TO_RAD = Math.PI / 180;
 const STAR_WRAP_W = (GAME_WIDTH + 2) * SCALE;
@@ -92,6 +100,15 @@ export type RenderState = {
   minimapContent: Container;
   minimapGfx: Graphics;
   minimapSprite: Sprite;
+  // SNES fidelity spike: pre-rendered rotation frames, one set per bank pose
+  // and one each for the other rotating sprites. Undefined until installed.
+  shipRotations?: {
+    standard: RotationSet;
+    bankLeft: RotationSet;
+    bankRight: RotationSet;
+  };
+  enemyRotations?: RotationSet;
+  bulletRotations?: RotationSet;
 };
 
 export function initRender(
@@ -316,9 +333,15 @@ function drawEntities(
       er = lerp(enemy.previous.rotation, er, alpha);
     }
     const sprite = poolSprite(s, i++);
-    sprite.texture = s.enemyTexture;
+    const enemyFrame =
+      s.enemyRotations === undefined
+        ? undefined
+        : textureFor(s.enemyRotations, er);
+    sprite.texture = enemyFrame ?? s.enemyTexture;
     sprite.tint = 0xffffff;
-    sprite.rotation = er * DEG_TO_RAD; // face its heading, like the ship
+    // Pre-rendered frames already carry the heading, so the sprite must not
+    // also be rotated — that is the whole point of the constraint.
+    sprite.rotation = enemyFrame === undefined ? er * DEG_TO_RAD : 0;
     // Hit flash reads as a quick scale pop (tint can't brighten a sprite).
     sprite.scale.set(enemy.enemy.hitFlash > 0 ? 1.4 : 1);
     sprite.position.set(
@@ -337,11 +360,17 @@ function drawEntities(
       br = lerp(bullet.previous.rotation, br, alpha);
     }
     const sprite = poolSprite(s, i++);
-    sprite.texture = s.bulletTexture;
+    const bulletFrame =
+      s.bulletRotations === undefined
+        ? undefined
+        : textureFor(s.bulletRotations, br);
+    sprite.texture = bulletFrame ?? s.bulletTexture;
     // Homing missiles read orange so they're distinct from the straight shots.
+    // (On hardware this would be a palette swap, not a tint — see snesgine
+    // docs/learning/03-sprites-oam.)
     sprite.tint = bullet.homing ? toHex(Pico8.orange) : 0xffffff;
     sprite.scale.set(1);
-    sprite.rotation = br * DEG_TO_RAD;
+    sprite.rotation = bulletFrame === undefined ? br * DEG_TO_RAD : 0;
     sprite.position.set(
       Math.floor(bx) - flooredCamX,
       Math.floor(by) - flooredCamY,
@@ -618,10 +647,22 @@ export function renderFrame(
   const viewRight = flooredCamX + GAME_WIDTH + 1;
   const viewBottom = flooredCamY + GAME_HEIGHT + 1;
 
-  drawWorld(s, flooredCamX, flooredCamY, viewLeft, viewTop, viewRight, viewBottom);
+  drawWorld(
+    s,
+    flooredCamX,
+    flooredCamY,
+    viewLeft,
+    viewTop,
+    viewRight,
+    viewBottom,
+  );
   drawEntities(s, flooredCamX, flooredCamY, interpolate, alpha);
   drawReticle(s, flooredCamX, flooredCamY, dt);
-  renderer.render({ container: s.worldContainer, target: s.worldRT, clear: true });
+  renderer.render({
+    container: s.worldContainer,
+    target: s.worldRT,
+    clear: true,
+  });
 
   drawStars(s, camX, camY, subpixel, ship.velocity.x, ship.velocity.y);
 
@@ -635,24 +676,52 @@ export function renderFrame(
   if (bankTurn > BANK_ENTER) bankState = 1;
   else if (bankTurn < -BANK_ENTER) bankState = -1;
   else if (Math.abs(bankTurn) < BANK_EXIT) bankState = 0;
-  const nextTexture =
-    bankState < 0
-      ? s.shipTextures.bankLeft
-      : bankState > 0
-        ? s.shipTextures.bankRight
-        : s.shipTextures.standard;
-  // On a swap, park the outgoing frame on the fade layer and dissolve it out so
-  // the change reads as a soft cross-fade rather than an abrupt pop.
-  if (nextTexture !== s.shipSprite.texture) {
-    s.bankFadeSprite.texture = s.shipSprite.texture;
-    bankFade = 1;
-    s.shipSprite.texture = nextTexture;
+  // SNES fidelity spike: when active, the ship's heading comes from a
+  // pre-rendered frame instead of a live rotation, and the bank cross-fade is
+  // gone — there is no per-sprite alpha on the hardware, so a bank change can
+  // only ever be a hard swap.
+  const shipSet =
+    s.shipRotations === undefined
+      ? undefined
+      : bankState < 0
+        ? s.shipRotations.bankLeft
+        : bankState > 0
+          ? s.shipRotations.bankRight
+          : s.shipRotations.standard;
+  const shipFrame =
+    shipSet === undefined ? undefined : textureFor(shipSet, shipRot);
+
+  if (shipFrame !== undefined) {
+    s.shipSprite.rotation = 0;
+    s.shipSprite.texture = shipFrame;
+    s.bankFadeSprite.visible = false;
+    bankFade = 0;
+  } else {
+    const nextTexture =
+      bankState < 0
+        ? s.shipTextures.bankLeft
+        : bankState > 0
+          ? s.shipTextures.bankRight
+          : s.shipTextures.standard;
+    // On a swap, park the outgoing frame on the fade layer and dissolve it out
+    // so the change reads as a soft cross-fade rather than an abrupt pop.
+    if (nextTexture !== s.shipSprite.texture) {
+      s.bankFadeSprite.texture = s.shipSprite.texture;
+      bankFade = 1;
+      s.shipSprite.texture = nextTexture;
+    }
+    bankFade = Math.max(0, bankFade - dt / BANK_FADE);
+    s.bankFadeSprite.visible = bankFade > 0;
+    s.bankFadeSprite.alpha = bankFade;
+    s.bankFadeSprite.rotation = s.shipSprite.rotation;
   }
-  bankFade = Math.max(0, bankFade - dt / BANK_FADE);
-  s.bankFadeSprite.visible = bankFade > 0;
-  s.bankFadeSprite.alpha = bankFade;
-  s.bankFadeSprite.rotation = s.shipSprite.rotation;
-  updatePlanetLight(s, shipX, shipY, shipRot);
+  // Per-sprite additive tint has no hardware equivalent; on the SNES this would
+  // be a palette swap. Hidden in SNES mode so the comparison stays honest.
+  if (snesMode.enabled) {
+    s.lightSprite.visible = false;
+  } else {
+    updatePlanetLight(s, shipX, shipY, shipRot);
+  }
 
   s.minimapSprite.visible = minimap;
   if (minimap) {

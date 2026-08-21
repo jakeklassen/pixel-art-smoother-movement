@@ -149,10 +149,25 @@ const STAR_LAYERS: Array<{
   colors: Color[];
   bigChance: number;
 }> = [
-    { count: 116, depth: 0.3, colors: [Pico8.darkGray, Pico8.lavender], bigChance: 0 },
-    { count: 80, depth: 0.55, colors: [Pico8.lavender, Pico8.lightGray], bigChance: 0 },
-    { count: 54, depth: 0.85, colors: [Pico8.lightGray, Pico8.white], bigChance: 0.2 },
-  ];
+  {
+    count: 116,
+    depth: 0.3,
+    colors: [Pico8.darkGray, Pico8.lavender],
+    bigChance: 0,
+  },
+  {
+    count: 80,
+    depth: 0.55,
+    colors: [Pico8.lavender, Pico8.lightGray],
+    bigChance: 0,
+  },
+  {
+    count: 54,
+    depth: 0.85,
+    colors: [Pico8.lightGray, Pico8.white],
+    bigChance: 0.2,
+  },
+];
 
 /** Scatter parallax star layers; ring the planets around the spawn point. */
 export function populateWorld(world: World<Entity>) {

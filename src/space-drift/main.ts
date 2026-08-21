@@ -30,6 +30,14 @@ import { SPACE_COLOR, toHex } from './palette.ts';
 import { initQueries } from './queries.ts';
 import { initRender, renderFrame } from './render.ts';
 import {
+  cycleFit,
+  cycleFrames,
+  describe as describeSnes,
+  loadSheetPixels,
+  prerenderRotations,
+  snesMode,
+} from './snes-mode.ts';
+import {
   bulletSystem,
   enemyAiSystem,
   enemySystem,
@@ -89,12 +97,28 @@ async function main() {
   populateWorld(world);
   initQueries(world);
 
+  // SNES fidelity spike (snesgine #17): pre-render nearest-neighbour rotation
+  // frames from the source tiles, exactly as the asset pipeline will. Done once
+  // at load; every (fit mode x frame count) combination is built so the spike
+  // can A/B live.
+  const sheetPixels = await loadSheetPixels(shmupUrl);
+  const prerender = (col: number, row: number) =>
+    prerenderRotations(sheetPixels.data, sheetPixels.width, col, row);
+
   const state = initRender(
     app.renderer,
     shipTextures,
     bulletTexture,
     enemyTexture,
   );
+
+  state.shipRotations = {
+    standard: prerender(2, 0),
+    bankLeft: prerender(1, 0),
+    bankRight: prerender(3, 0),
+  };
+  state.enemyRotations = prerender(11, 8);
+  state.bulletRotations = prerender(6, 0);
   initEffects();
   app.stage.addChild(state.scene);
 
@@ -154,6 +178,14 @@ async function main() {
   });
   statusText.position.set(6, WINDOW_HEIGHT - 20);
   hud.addChild(statusText);
+
+  // Spike readout, above the normal status line so it's the first thing you see.
+  const snesText = new Text({
+    text: '',
+    style: { fontFamily: 'monospace', fontSize: 12, fill: 0xffec27 },
+  });
+  snesText.position.set(6, WINDOW_HEIGHT - 38);
+  hud.addChild(snesText);
   const box = (on: boolean) => (on ? '[x]' : '[ ]');
 
   let interpolation = true;
@@ -164,6 +196,17 @@ async function main() {
 
   onPress('i', () => (interpolation = !interpolation));
   onPress('p', () => (subpixel = !subpixel));
+  // SNES mode is a master switch: on the hardware there is no sub-pixel
+  // scrolling and exactly one frame rate, so those are not independent choices.
+  onPress('n', () => {
+    snesMode.enabled = !snesMode.enabled;
+    if (snesMode.enabled) {
+      interpolation = false;
+      subpixel = false;
+    }
+  });
+  onPress('k', cycleFrames);
+  onPress('o', cycleFit);
   onPress('c', () => {
     crt = !crt;
     setCrt(state.scene, crt);
@@ -275,7 +318,12 @@ async function main() {
     // Tier ticks at 1s and 2s (thirds of the window).
     for (const t of [1 / 3, 2 / 3]) {
       chargeBar
-        .rect(CHARGE_BAR_X + Math.floor(CHARGE_BAR_W * t), CHARGE_BAR_Y - 1, 1, CHARGE_BAR_H + 2)
+        .rect(
+          CHARGE_BAR_X + Math.floor(CHARGE_BAR_W * t),
+          CHARGE_BAR_Y - 1,
+          1,
+          CHARGE_BAR_H + 2,
+        )
         .fill({ color: 0xc2c3c7, alpha: 0.9 });
     }
     chargeBar
@@ -306,6 +354,7 @@ async function main() {
 
     const pad = gamepadConnected() ? '   gamepad' : '';
     statusText.text = `interp ${box(interpolation)} [i]   subpix ${box(subpixel)} [p]   crt ${box(crt)} [c]   map ${box(minimap)} [m]   boost ${box(actions.boost())} [z]${pad}`;
+    snesText.text = `${describeSnes()}   [n] toggle   [k] frames   [o] fit`;
   });
 }
 
